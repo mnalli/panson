@@ -7,8 +7,10 @@ notebooks.
 
 
 from .sonification import Sonification
+from .data_players import DataPlayer
 
 
 __all__ = [
     'Sonification',
+    'DataPlayer'
 ]
