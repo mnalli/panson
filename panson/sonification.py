@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import sc3nb as scn
 
 
 class Sonification(ABC):
@@ -7,11 +8,13 @@ class Sonification(ABC):
         # sonification parameter mutex
         # self._mutex = "todo"
 
+        # contain the default server
+        self.s = scn.SC.get_default().server
+
         # list of synthdefs
         self.synthdefs = None
         self.params = None
 
-    # TODO: can be done authomatically?
     @abstractmethod
     def initialize(self):
         """Return OSC messages to initialize the sonification on the server.
@@ -19,8 +22,7 @@ class Sonification(ABC):
         Some tasks could be:
         * Send SynthDefs
 
-        :return: list of OSCMessage
-            The order of the list is not significant.
+        :return: Bundler containing the OSC messages
         """
         pass
 
@@ -34,8 +36,7 @@ class Sonification(ABC):
         * allocate a group(s) that will contain all the synths of this
             sonification
 
-        :return: list of OSCMessage
-            The order of the list is not significant.
+        :return: Bundler containing the OSC messages
         """
         pass
 
@@ -49,8 +50,7 @@ class Sonification(ABC):
         * free a group containing all the synths relative to this sonification
         * do nothing (in case the sonification stops smoothly automatically)
 
-        :return: list of OSCMessage
-            The order of the list is not significant.
+        :return: Bundler containing the OSC messages
         """
         pass
 
@@ -67,14 +67,9 @@ class Sonification(ABC):
 
         :param row: pandas Series
             Data row to be sonified.
-        :return: list of OSCMessage
-            The order of the list is not significant.
+        :return: Bundler containing the OSC messages
         """
         pass
 
     def __repr__(self):
         pass
-
-
-# if __name__ == '__main__':
-#     pass
