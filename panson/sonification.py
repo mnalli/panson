@@ -5,15 +5,20 @@ import sc3nb as scn
 class Sonification(ABC):
 
     def __init__(self):
-        # sonification parameter mutex
+        # sync access to sonification parameters
         # self._mutex = "todo"
 
-        # contain the default server
-        self.s = scn.SC.get_default().server
+        # reference to default server
+        self.__s = scn.SC.get_default().server
 
         # list of synthdefs
         self.synthdefs = None
         self.params = None
+
+    @property
+    def _s(self):
+        """Instance of default server"""
+        return self.__s
 
     @abstractmethod
     def initialize(self):
