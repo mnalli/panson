@@ -17,6 +17,7 @@ class DataPlayer:
 
         # reference to default server
         self._s = scn.SC.get_default().server
+        self._recorder = None
 
     def load(self, data):
         if type(data) == type(str):
@@ -59,6 +60,26 @@ class DataPlayer:
         # send stop bundle
         self._s.bundler().add(self.sonification.stop()).send()
 
+    # TODO: the code in RTDataPlayer is duplicated...
+    def record_start(self, path='record.wav'):
+        # TODO: this sends the recorder definition every time.
+        # can we do better?
+
+        if self._recorder is not None:
+            raise ValueError("Recorder already working.")
+
+        self._recorder = scn.Recorder(path=path, server=self._s)
+        # send start bundle to the server
+        self._recorder.start()
+
+    def record_stop(self):
+        if self._recorder is None:
+            raise ValueError("Start the recorder first!")
+
+        # send stop bundle to the server
+        self._recorder.stop()
+        self._recorder = None
+
     def _get_score(self):
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
@@ -94,13 +115,13 @@ class DataPlayer:
     #     pass
 
 
-# TODO: use callback instead of ABS with template method?
-class RTDataPlayer():
+class RTDataPlayer:
 
-    def __init__(self, sonification=None, data_generator=None):
+    def __init__(self, data_generator, sonification=None):
         self.sonification = sonification
         self._datagen = data_generator
         self._s = scn.SC.get_default().server
+        self._recorder = None
 
     def listen(self):
         # load synthdefs on the server
@@ -116,11 +137,24 @@ class RTDataPlayer():
         # send stop bundle
         self._s.bundler().add(self.sonification.stop()).send()
 
-    def record_start(self, out):
-        pass
+    def record_start(self, path='record.wav'):
+        # TODO: this sends the recorder definition every time.
+        # can we do better?
+
+        if self._recorder is not None:
+            raise ValueError("Recorder already working.")
+
+        self._recorder = scn.Recorder(path=path, server=self._s)
+        # send start bundle to the server
+        self._recorder.start()
 
     def record_stop(self):
-        pass
+        if self._recorder is None:
+            raise ValueError("Start the recorder first!")
+
+        # send stop bundle to the server
+        self._recorder.stop()
+        self._recorder = None
 
     def log_start(self, out):
         pass
