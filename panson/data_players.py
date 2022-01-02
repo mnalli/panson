@@ -109,6 +109,7 @@ class DataPlayer:
 
         return bundler.messages()
 
+    # TODO: export a precise range?
     def export(self, out_path):
         score = self._get_score()
 
@@ -121,18 +122,24 @@ class DataPlayer:
 
 class RTDataPlayer:
 
-    def __init__(self, data_generator, sonification=None):
+    def __init__(self, datagen_function, sonification=None):
         self.sonification = sonification
-        self._datagen = data_generator
+        self._datagen = datagen_function
         self._s = scn.SC.get_default().server
+
         self._recorder = None
+        self._logs = None
+
         self._worker = None
+        self._running = False
 
     def listen(self):
         self._worker = Thread(target=self._listen)
         self._worker.start()
 
     def _listen(self):
+        self._running = True
+
         # load synthdefs on the server
         # TODO: do it every time???
         self._s.bundler().add(self.sonification.initialize()).send()
@@ -140,11 +147,26 @@ class RTDataPlayer:
         # TODO: is it better to instantiate asap?
         self._s.bundler().add(self.sonification.start()).send()
 
-        for row in self._datagen:
+        for row in self._datagen():
+            # TODO: this access is not thread safe
+            if not self._running:
+                break
+
             self._s.bundler().add(self.sonification.process(row)).send()
+
+            # if logging is enabled, log the data
+            if self._logs is not None:
+                self._logs = self._logs.append(row)
 
         # send stop bundle
         self._s.bundler().add(self.sonification.stop()).send()
+
+        self._running = False
+
+    def close(self):
+        # stop workin thread
+        self._running = False
+        self._worker.join()
 
     def record_start(self, path='record.wav'):
         # TODO: this sends the recorder definition every time.
@@ -165,8 +187,15 @@ class RTDataPlayer:
         self._recorder.stop()
         self._recorder = None
 
-    def log_start(self, out):
-        pass
+    def log_start(self):
+        if self._logs is not None:
+            raise ValueError("Already logging.")
+        self._logs = pd.DataFrame()
 
-    def log_stop(self, return_dp=False):
-        pass
+    def log_stop(self):
+        if self._logs is None:
+            raise ValueError("Start logging first!")
+        df = self._logs
+        self._logs = None
+
+        return df
