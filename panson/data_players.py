@@ -4,6 +4,10 @@ from sc3nb import Score, Bundler
 import pandas as pd
 
 from time import time, sleep
+from threading import Thread
+
+# import logging
+# _LOGGER = logging.getLogger(__name__)
 
 
 class DataPlayer:
@@ -122,8 +126,13 @@ class RTDataPlayer:
         self._datagen = data_generator
         self._s = scn.SC.get_default().server
         self._recorder = None
+        self._worker = None
 
     def listen(self):
+        self._worker = Thread(target=self._listen)
+        self._worker.start()
+
+    def _listen(self):
         # load synthdefs on the server
         # TODO: do it every time???
         self._s.bundler().add(self.sonification.initialize()).send()
