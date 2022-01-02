@@ -110,14 +110,8 @@ class RTDataPlayer():
         # TODO: is it better to instantiate asap?
         self._s.bundler().add(self.sonification.start()).send()
 
-        # the first line written to the pipe is the CSV header
-        header = next(self._datagen)
-        # print(header)
-
         for row in self._datagen:
-            # TODO: check copying behaviour
-            series = pd.Series(row, header, dtype='float')
-            self._s.bundler().add(self.sonification.process(series)).send()
+            self._s.bundler().add(self.sonification.process(row)).send()
 
         # send stop bundle
         self._s.bundler().add(self.sonification.stop()).send()
