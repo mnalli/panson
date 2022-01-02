@@ -6,11 +6,11 @@ notebooks.
 """
 
 
-from .sonification import Sonification
+from .sonification import Sonification, bundle
 from .data_players import DataPlayer
 
 
 __all__ = [
-    'Sonification',
+    'Sonification', 'bundle',
     'DataPlayer'
 ]

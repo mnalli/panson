@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import sc3nb as scn
+from sc3nb.osc.osc_communication import Bundler
 
 
 class Sonification(ABC):
@@ -78,3 +79,20 @@ class Sonification(ABC):
 
     def __repr__(self):
         pass
+
+
+# TODO: put inside the class?
+#     it would make more sense, but it would look less aesthetic
+def bundle(fun):
+    """Decorator that adds automatic bundling to the decorated funcition.
+
+    The decorated function will capture messages in a bundler object and return
+    it. The bundling does not consider any server latency, making it suitable
+    for decorating methods of concrete subclasses of Sonification.
+    """
+    def message_catcher(*args):
+        with Bundler(send_on_exit=False) as bundler:
+            fun(*args)
+        return bundler
+
+    return message_catcher
