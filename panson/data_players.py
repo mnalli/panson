@@ -6,8 +6,8 @@ import pandas as pd
 from time import time, sleep
 from threading import Thread
 
-# import logging
-# _LOGGER = logging.getLogger(__name__)
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 
 class DataPlayer:
@@ -134,10 +134,11 @@ class RTDataPlayer:
         self._running = False
 
     def listen(self):
-        self._worker = Thread(target=self._listen)
+        self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
 
     def _listen(self):
+        _LOGGER.debug('listener thread started')
         self._running = True
 
         # load synthdefs on the server
@@ -162,6 +163,7 @@ class RTDataPlayer:
         self._s.bundler().add(self.sonification.stop()).send()
 
         self._running = False
+        _LOGGER.debug('listener thread ended')
 
     def close(self):
         # stop workin thread
