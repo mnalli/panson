@@ -7,10 +7,10 @@ notebooks.
 
 
 from .sonification import Sonification, bundle
-from .data_players import DataPlayer
+from .data_players import DataPlayer, RTDataPlayer
 
 
 __all__ = [
     'Sonification', 'bundle',
-    'DataPlayer'
+    'DataPlayer', 'RTDataPlayer'
 ]
