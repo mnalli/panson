@@ -14,3 +14,10 @@ __all__ = [
     'Sonification', 'bundle',
     'DataPlayer', 'RTDataPlayer'
 ]
+
+
+def load_ipython_extension(ipython):
+    """Load the extension in IPython."""
+    from .magics import load_ipython_extension as load_extension
+
+    load_extension(ipython)
