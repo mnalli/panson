@@ -106,7 +106,6 @@ class DataPlayer:
         # assumpions:
         #   timestamp contains time info
         #   positive rate
-        #   no seek while playing
 
         start_ptr = self._ptr
         t0 = time()
@@ -114,8 +113,10 @@ class DataPlayer:
         if self._fps is None:
             start_timestamp = self._df.iloc[start_ptr].timestamp
 
+        i = 0
+
         # iterate over dataframe rows, from the current element on
-        for i, row in self._df.iloc[start_ptr:-1].iterrows():
+        for _, row in self._df.iloc[start_ptr:-1].iterrows():
             with self._running_lock:
                 if not self._running:
                     # pause was called
@@ -126,6 +127,8 @@ class DataPlayer:
             else:
                 target_time = t0 + (row.timestamp - start_timestamp) / rate
 
+            i += 1
+
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
 
@@ -133,6 +136,7 @@ class DataPlayer:
 
             # sleep for the missing time
             waiting_time = target_time - time()
+            # print(waiting_time)
             if waiting_time > 0:
                 sleep(waiting_time)
 
@@ -159,7 +163,18 @@ class DataPlayer:
                 f"Invalid index {idx}."
                 f"Must be in range [0, {self._df.index[-1]}]"
             )
-        self._ptr = idx
+
+        with self._running_lock:
+            local_running = self._running
+
+        if local_running:
+            # restart thread with updated position
+            self.pause()
+            self._ptr = idx
+            # TODO: start with same rate
+            self.play()
+        else:
+            self._ptr = idx
 
     # TODO: the code in RTDataPlayer is duplicated...
     def record_start(self, path='record.wav'):
