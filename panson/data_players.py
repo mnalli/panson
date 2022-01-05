@@ -4,7 +4,7 @@ from sc3nb import Score, Bundler
 import pandas as pd
 
 from time import time, sleep
-from threading import Thread
+from threading import Thread, Lock
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -120,6 +120,10 @@ class DataPlayer:
     #     pass
 
 
+
+# TODO: add listening hooks
+# TODO: add closing hooks
+
 class RTDataPlayer:
 
     def __init__(self, datagen_function, sonification=None):
@@ -127,47 +131,67 @@ class RTDataPlayer:
         self._datagen = datagen_function
         self._s = scn.SC.get_default().server
 
-        self._recorder = None
-        self._logs = None
-
+        # worker thread
         self._worker = None
+
+        # running info and lock
         self._running = False
+        self._running_lock = Lock()
+
+        self._recorder = None
+
+        # logs dataframe and lock
+        self._logs = None
+        self._logs_lock = Lock()
 
     def listen(self):
+        with self._running_lock:
+            if self._running:
+                raise ValueError("Already listening!")
+
         self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
 
     def _listen(self):
-        _LOGGER.debug('listener thread started')
-        self._running = True
+        _LOGGER.info('listener thread starting')
 
-        # load synthdefs on the server
+        with self._running_lock:
+            self._running = True
+
         # TODO: do it every time???
+        # load synthdefs on the server
         self._s.bundler().add(self.sonification.initialize()).send()
 
         # TODO: is it better to instantiate asap?
         self._s.bundler().add(self.sonification.start()).send()
 
         for row in self._datagen():
-            # TODO: this access is not thread safe
-            if not self._running:
-                break
+            with self._running_lock:
+                # close was called
+                if not self._running:
+                    break
 
             self._s.bundler().add(self.sonification.process(row)).send()
 
-            # if logging is enabled, log the data
-            if self._logs is not None:
-                self._logs = self._logs.append(row)
+            with self._logs_lock:
+                # if logging is enabled, log the data
+                if self._logs is not None:
+                    self._logs = self._logs.append(row)
 
         # send stop bundle
         self._s.bundler().add(self.sonification.stop()).send()
 
-        self._running = False
-        _LOGGER.debug('listener thread ended')
+        # this is relevant when the for loop ends naturally
+        with self._running_lock:
+            self._running = False
+        _LOGGER.info('listener thread exiting')
 
     def close(self):
-        # stop workin thread
-        self._running = False
+        with self._running_lock:
+            if not self._running:
+                raise ValueError('Already closed!')
+            # stop workin thread
+            self._running = False
         self._worker.join()
 
     def record_start(self, path='record.wav'):
@@ -190,14 +214,16 @@ class RTDataPlayer:
         self._recorder = None
 
     def log_start(self):
-        if self._logs is not None:
-            raise ValueError("Already logging.")
-        self._logs = pd.DataFrame()
+        with self._logs_lock:
+            if self._logs is not None:
+                raise ValueError("Already logging.")
+            self._logs = pd.DataFrame()
 
     def log_stop(self):
-        if self._logs is None:
-            raise ValueError("Start logging first!")
-        df = self._logs
-        self._logs = None
+        with self._logs_lock:
+            if self._logs is None:
+                raise ValueError("Start logging first!")
+            df = self._logs
+            self._logs = None
 
         return df
