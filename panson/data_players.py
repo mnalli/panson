@@ -6,6 +6,8 @@ import pandas as pd
 from time import time, sleep
 from threading import Thread, Lock
 
+from .sonification import Sonification
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,18 +15,11 @@ _LOGGER = logging.getLogger(__name__)
 class DataPlayer:
 
     def __init__(self, sonification=None, data=None, fps=None):
-        self.sonification = sonification
-        if data is None:
-            self.df = None
-        else:
-            self.load(data)
-
-        self._fps = fps
-        # index of the current data point to play
-        self._ptr = 0
+        self._son = sonification
 
         # reference to default server
         self._s = scn.SC.get_default().server
+
         self._recorder = None
 
         # worker thread
@@ -34,16 +29,46 @@ class DataPlayer:
         self._running = False
         self._running_lock = Lock()
 
-    def load(self, data):
+        # load data
+        self._df = self._fps = None
+        # index of the current data point to play
+        self._ptr = 0
+
+        if data is not None:
+            self.load(data, fps)
+
+    @property
+    def sonification(self):
+        return self._son
+
+    @sonification.setter
+    def sonification(self, son):
+        if not issubclass(son, Sonification):
+            raise ValueError(f"Cannot assign a {type(son)} object as sonification")
+
+        with self._running_lock:
+            if self._running:
+                # the sonification must be stopped before changing it
+                raise ValueError("Cannot change sonification while playing.")
+        self._son = son
+
+    def load(self, data, fps=None):
+        with self._running_lock:
+            if self._running:
+                raise ValueError("Cannot load data while playing.")
+
         if type(data) == type(str):
-            self.df = self._load()
+            self._df = self._load(data)
         elif type(data) == pd.DataFrame:
-            self.df = data
+            self._df = data
         else:
             raise ValueError(
                 f"Cannot load {data} of type {type(data)}."
                 f"Needing {pd.DataFrame} or a path to a csv file."
             )
+        # TODO: check fps type
+        self._fps = fps
+        self._ptr = 0
 
     @staticmethod
     def _load(df_path):
@@ -51,33 +76,10 @@ class DataPlayer:
         df = pd.read_csv(df_path, sep=r',\s*', engine='python')
         return df
 
-    def play_test(self):
-        # load synthdefs on the server
-        # TODO: do it every time???
-        self._s.bundler().add(self.sonification.initialize()).send()
-
-        # TODO: is it better to instantiate asap?
-        self._s.bundler().add(self.sonification.start()).send()
-
-        t0 = time()
-
-        # iterate over dataframe rows
-        for _, row in self.df.iterrows():
-            # process, bundle and send
-            self._s.bundler(t0 + row.timestamp).add(self.sonification.process(row)).send()
-
-            # sleep for the missing time
-            waiting_time = t0 + row.timestamp - time()
-            if waiting_time > 0:
-                sleep(waiting_time)
-
-        # send stop bundle
-        self._s.bundler().add(self.sonification.stop()).send()
-
     def play(self, rate=1):
         with self._running_lock:
             if self._running:
-                raise ValueError("Already playing!!")
+                raise ValueError("Already playing!")
 
         self._worker = Thread(name='player', target=self._play, args=(rate,))
         self._worker.start()
@@ -90,10 +92,10 @@ class DataPlayer:
 
         # TODO: do it every time???
         # load synthdefs on the server
-        self._s.bundler().add(self.sonification.initialize()).send()
+        self._s.bundler().add(self._son.initialize()).send()
 
         # TODO: is it better to instantiate asap?
-        self._s.bundler().add(self.sonification.start()).send()
+        self._s.bundler().add(self._son.start()).send()
 
         # assumpions:
         #   no fps mode
@@ -103,18 +105,24 @@ class DataPlayer:
 
         start_ptr = self._ptr
         t0 = time()
-        start_timestamp = self.df.iloc[start_ptr].timestamp
+
+        if self._fps is None:
+            start_timestamp = self._df.iloc[start_ptr].timestamp
 
         # iterate over dataframe rows, from the current element on
-        for _, row in self.df.iloc[start_ptr:-1].iterrows():
+        for i, row in self._df.iloc[start_ptr:-1].iterrows():
             with self._running_lock:
                 if not self._running:
                     # pause was called
                     break
 
+            if self._fps:
+                target_time = t0 + (i * 1 / self._fps) / rate
+            else:
+                target_time = t0 + (row.timestamp - start_timestamp) / rate
+
             # process, bundle and send
-            target_time = t0 + (row.timestamp - start_timestamp) / rate
-            self._s.bundler(target_time).add(self.sonification.process(row)).send()
+            self._s.bundler(target_time).add(self._son.process(row)).send()
 
             self._ptr += 1
 
@@ -124,7 +132,7 @@ class DataPlayer:
                 sleep(waiting_time)
 
         # send stop bundle
-        self._s.bundler().add(self.sonification.stop()).send()
+        self._s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
         with self._running_lock:
@@ -139,11 +147,12 @@ class DataPlayer:
             self._running = False
         self._worker.join()
 
+    # TODO: time input
     def seek(self, idx):
-        if not (0 <= idx <= self.df.index[-1]):
+        if not (0 <= idx <= self._df.index[-1]):
             raise ValueError(
                 f"Invalid index {idx}."
-                f"Must be in range [0, {self.df.index[-1]}]"
+                f"Must be in range [0, {self._df.index[-1]}]"
             )
         self._ptr = idx
 
@@ -180,7 +189,7 @@ class DataPlayer:
             bundler.add(self.sonification.start())
 
             # iterate over dataframe rows
-            for _, row in self.df.iterrows():
+            for _, row in self._df.iterrows():
                 # lend over row (pd.Series) to Sonification
                 bundler.add(row.timestamp, self.sonification.process(row))
 
@@ -258,6 +267,7 @@ class RTDataPlayer:
             with self._logs_lock:
                 # if logging is enabled, log the data
                 if self._logs is not None:
+                    # TODO: handle out of memory error
                     self._logs = self._logs.append(row)
 
         # send stop bundle
