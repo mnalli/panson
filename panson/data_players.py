@@ -77,6 +77,9 @@ class DataPlayer:
         return df
 
     def play(self, rate=1):
+        if rate == 0:
+            raise ValueError("Cannot use a rate of 0.")
+
         with self._running_lock:
             if self._running:
                 raise ValueError("Already playing!")
@@ -85,9 +88,12 @@ class DataPlayer:
         self._worker.start()
 
     def _play(self, rate):
+        assert rate != 0, "rate == 0"
+
         _LOGGER.info('player thread starting')
 
         with self._running_lock:
+            assert not self._running, "called while running"
             self._running = True
 
         # TODO: do it every time???
@@ -98,7 +104,6 @@ class DataPlayer:
         self._s.bundler().add(self._son.start()).send()
 
         # assumpions:
-        #   no fps mode
         #   timestamp contains time info
         #   positive rate
         #   no seek while playing
