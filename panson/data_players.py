@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class DataPlayer:
 
-    def __init__(self, sonification=None, data=None, fps=None):
+    def __init__(self, sonification=None):
         self._son = sonification
 
         # reference to default server
@@ -31,12 +31,9 @@ class DataPlayer:
         self._rate = 1
 
         # load data
-        self._df = self._fps = None
+        self._df = self._fps = self._time_key = None
         # index of the current data point to play
         self._ptr = 0
-
-        if data is not None:
-            self.load(data, fps)
 
     @property
     def sonification(self):
@@ -72,12 +69,12 @@ class DataPlayer:
         else:
             self._rate = rate
 
-    def load(self, data, fps=None):
+    def load(self, data, fps=None, time_key='timestamp'):
         with self._running_lock:
             if self._running:
                 raise ValueError("Cannot load data while playing.")
 
-        if type(data) == type(str):
+        if type(data) == str:
             self._df = self._load(data)
         elif type(data) == pd.DataFrame:
             self._df = data
@@ -86,9 +83,20 @@ class DataPlayer:
                 f"Cannot load {data} of type {type(data)}."
                 f"Needing {pd.DataFrame} or a path to a csv file."
             )
-        # TODO: check fps type
+
         self._fps = fps
         self._ptr = 0
+
+        if type(time_key) != str:
+            raise ValueError(
+                f"time_key cannot be a {type(time_key)}: must be string.")
+
+        if fps is None:
+            self._time_key = time_key
+        else:
+            self._time_key = None
+
+        return self
 
     @staticmethod
     def _load(df_path):
@@ -120,14 +128,11 @@ class DataPlayer:
         # TODO: is it better to instantiate asap?
         self._s.bundler().add(self._son.start()).send()
 
-        # assumpions:
-        #   timestamp contains time info
-
         start_ptr = self._ptr
         t0 = time()
 
         if self._fps is None:
-            start_timestamp = self._df.iloc[start_ptr].timestamp
+            start_timestamp = self._df.iloc[start_ptr][self._time_key]
 
         # TODO: refactor this variable
         i = 0
@@ -145,7 +150,7 @@ class DataPlayer:
             if self._fps:
                 target_time = t0 + (i * 1 / self._fps) / abs(self._rate)
             else:
-                target_time = t0 + (row.timestamp - start_timestamp) / self._rate
+                target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
 
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
@@ -230,13 +235,13 @@ class DataPlayer:
             # iterate over dataframe rows
             for _, row in self._df.iterrows():
                 # lend over row (pd.Series) to Sonification
-                bundler.add(row.timestamp, self.sonification.process(row))
+                bundler.add(row[self._time_key], self.sonification.process(row))
 
             # TODO: call sonification.stop???
 
             # TODO: this way the last line will not count? do we want to add an offset?
             # /c_set [0, 0] will close the audio file
-            bundler.add(row.timestamp, "/c_set", [0, 0])
+            bundler.add(row[self._time_key], "/c_set", [0, 0])
 
         return bundler.messages()
 
