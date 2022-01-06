@@ -61,11 +61,9 @@ class DataPlayer:
     def rate(self, rate):
         if rate == 0:
             raise ValueError("Cannot set rate to 0.")
-        if rate < 0:
-            raise ValueError("Cannot set negative rate.")
+
         with self._running_lock:
             local_running = self._running
-
         if local_running:
             # restart thread with updated rate
             self.pause()
@@ -124,7 +122,6 @@ class DataPlayer:
 
         # assumpions:
         #   timestamp contains time info
-        #   positive rate
 
         start_ptr = self._ptr
         t0 = time()
@@ -132,26 +129,30 @@ class DataPlayer:
         if self._fps is None:
             start_timestamp = self._df.iloc[start_ptr].timestamp
 
+        # TODO: refactor this variable
         i = 0
+        # used to decide the direction of the iteration
+        rate_sign = int(self._rate / abs(self._rate))
 
         # iterate over dataframe rows, from the current element on
-        for _, row in self._df.iloc[start_ptr:-1].iterrows():
+        for ptr, row in self._df.iloc[start_ptr::rate_sign].iterrows():
+
             with self._running_lock:
                 if not self._running:
                     # pause was called
                     break
 
             if self._fps:
-                target_time = t0 + (i * 1 / self._fps) / self._rate
+                target_time = t0 + (i * 1 / self._fps) / abs(self._rate)
             else:
                 target_time = t0 + (row.timestamp - start_timestamp) / self._rate
-
-            i += 1
 
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
 
-            self._ptr += 1
+            i += 1
+            # update pointer to current row
+            self._ptr = ptr
 
             # sleep for the missing time
             waiting_time = target_time - time()
