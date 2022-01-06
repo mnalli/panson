@@ -24,10 +24,11 @@ class DataPlayer:
 
         # worker thread
         self._worker = None
-
         # running info and lock
         self._running = False
         self._running_lock = Lock()
+        # playback rate
+        self._rate = 1
 
         # load data
         self._df = self._fps = None
@@ -51,6 +52,27 @@ class DataPlayer:
                 # the sonification must be stopped before changing it
                 raise ValueError("Cannot change sonification while playing.")
         self._son = son
+
+    @property
+    def rate(self):
+        return self._rate
+
+    @rate.setter
+    def rate(self, rate):
+        if rate == 0:
+            raise ValueError("Cannot set rate to 0.")
+        if rate < 0:
+            raise ValueError("Cannot set negative rate.")
+        with self._running_lock:
+            local_running = self._running
+
+        if local_running:
+            # restart thread with updated rate
+            self.pause()
+            self._rate = rate
+            self.play()
+        else:
+            self._rate = rate
 
     def load(self, data, fps=None):
         with self._running_lock:
@@ -76,19 +98,16 @@ class DataPlayer:
         df = pd.read_csv(df_path, sep=r',\s*', engine='python')
         return df
 
-    def play(self, rate=1):
-        if rate == 0:
-            raise ValueError("Cannot use a rate of 0.")
-
+    def play(self):
         with self._running_lock:
             if self._running:
                 raise ValueError("Already playing!")
 
-        self._worker = Thread(name='player', target=self._play, args=(rate,))
+        self._worker = Thread(name='player', target=self._play)
         self._worker.start()
 
-    def _play(self, rate):
-        assert rate != 0, "rate == 0"
+    def _play(self):
+        assert self.rate != 0, "rate == 0"
 
         _LOGGER.info('player thread starting')
 
@@ -123,9 +142,9 @@ class DataPlayer:
                     break
 
             if self._fps:
-                target_time = t0 + (i * 1 / self._fps) / rate
+                target_time = t0 + (i * 1 / self._fps) / self._rate
             else:
-                target_time = t0 + (row.timestamp - start_timestamp) / rate
+                target_time = t0 + (row.timestamp - start_timestamp) / self._rate
 
             i += 1
 
@@ -171,7 +190,6 @@ class DataPlayer:
             # restart thread with updated position
             self.pause()
             self._ptr = idx
-            # TODO: start with same rate
             self.play()
         else:
             self._ptr = idx
