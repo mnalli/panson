@@ -44,7 +44,7 @@ class DataPlayer:
     @sonification.setter
     def sonification(self, son: Sonification) -> None:
         if not isinstance(son, Sonification):
-            raise ValueError(f"Cannot assign a {type(son)} object as sonification")
+            raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
 
         with self._running_lock:
             if self._running:
@@ -188,11 +188,44 @@ class DataPlayer:
             self._running = False
         self._worker.join()
 
-    # TODO: time input
-    def seek(self, idx: int) -> None:
+    def seek(self, time: Union[int, float]) -> None:
+        if type(time) == int:
+            self._seek_idx(time)
+        elif type(time) == float:
+            self._seek_time(time)
+        else:
+            raise ValueError(
+                "time must be an int (frame index) or float (seconds). "
+                f"Cannot be {type(time)}."
+            )
+
+    def _seek_time(self, time: float) -> None:
+        if self._fps:
+            max_time = self._df.index[-1] * 1 / self._fps
+            if not (0 <= time <= max_time):
+                raise ValueError(
+                    f"Cannot set time to {time}. "
+                    f"Must be between 0 and {max_time}."
+                )
+            frame_idx = int(time * self._fps)
+        else:
+            max_time = self._df[self._time_key].iloc[-1]
+            if not (0 <= time <= max_time):
+                raise ValueError(
+                    f"Cannot set time to {time}. "
+                    f"Must be between 0 and {max_time}."
+                )
+            timestamps = self._df[self._time_key]
+            # pick index nearest to the timestamp
+            # TODO: accelerate forward searching in monotonous functions
+            frame_idx = ((timestamps - time).abs()).argmin()
+
+        self._seek_idx(frame_idx)
+
+    def _seek_idx(self, idx: int) -> None:
         if not (0 <= idx <= self._df.index[-1]):
             raise ValueError(
-                f"Invalid index {idx}."
+                f"Invalid index {idx}. "
                 f"Must be in range [0, {self._df.index[-1]}]"
             )
 
@@ -260,8 +293,8 @@ class DataPlayer:
         # TODO: support other headers and scorefile paths?
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
-    def __repr__(self):
-        pass
+    # def __repr__(self):
+    #     pass
 
 
 # TODO: add listening hooks
@@ -376,5 +409,5 @@ class RTDataPlayer:
 
         return df
 
-    def __repr__(self):
-        pass
+    # def __repr__(self):
+    #     pass
