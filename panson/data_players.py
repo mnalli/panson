@@ -142,7 +142,7 @@ class DataPlayer:
             start_timestamp = self._df.iloc[start_ptr][self._time_key]
 
         # TODO: refactor this variable
-        i = 0
+        visited_rows = 0
         # used to decide the direction of the iteration
         rate_sign = int(self._rate / abs(self._rate))
 
@@ -155,14 +155,14 @@ class DataPlayer:
                     break
 
             if self._fps:
-                target_time = t0 + (i * 1 / self._fps) / abs(self._rate)
+                target_time = t0 + (visited_rows * 1 / self._fps) / abs(self._rate)
             else:
                 target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
 
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
 
-            i += 1
+            visited_rows += 1
             # update pointer to current row
             self._ptr = ptr
 
