@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 import sc3nb as scn
 from sc3nb.osc.osc_communication import Bundler
 
+from pandas import Series
+
 
 class Sonification(ABC):
 
-    def __init__(self):
+    def __init__(self) -> None:
         # sync access to sonification parameters
         # self._mutex = "todo"
 
@@ -17,12 +19,12 @@ class Sonification(ABC):
         self.params = None
 
     @property
-    def _s(self):
+    def _s(self) -> scn.SCServer:
         """Instance of default server"""
         return self.__s
 
     @abstractmethod
-    def initialize(self):
+    def initialize(self) -> Bundler:
         """Return OSC messages to initialize the sonification on the server.
 
         Some tasks could be:
@@ -33,7 +35,7 @@ class Sonification(ABC):
         pass
 
     @abstractmethod
-    def start(self):
+    def start(self) -> Bundler:
         """Return OSC messages to be sent at start time.
 
         Some tasks could be:
@@ -47,7 +49,7 @@ class Sonification(ABC):
         pass
 
     @abstractmethod
-    def stop(self):
+    def stop(self) -> Bundler:
         """Return OSC messages to be sent at stop time.
 
         Some tasks could be:
@@ -61,7 +63,7 @@ class Sonification(ABC):
         pass
 
     @abstractmethod
-    def process(self, row):
+    def process(self, row: Series) -> Bundler:
         """Process row and return OSC messages to update the sonification.
 
         The data row can contain information about the timing of the data, but
@@ -90,9 +92,9 @@ def bundle(fun):
     it. The bundling does not consider any server latency, making it suitable
     for decorating methods of concrete subclasses of Sonification.
     """
-    def message_catcher(*args):
+    def bundle_decorator(*args) -> Bundler:
         with Bundler(send_on_exit=False) as bundler:
             fun(*args)
         return bundler
 
-    return message_catcher
+    return bundle_decorator
