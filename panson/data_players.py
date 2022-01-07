@@ -8,7 +8,7 @@ from threading import Thread, Lock
 
 from .sonification import Sonification
 
-from typing import Union, Callable, Generator, List, Dict
+from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -17,18 +17,18 @@ _LOGGER = logging.getLogger(__name__)
 class DataPlayer:
 
     def __init__(self, sonification: Sonification = None) -> None:
-        self._son = sonification
 
+        self._son = sonification
         # reference to default server
         self._s = scn.SC.get_default().server
 
         self._recorder = None
-
         # worker thread
         self._worker = None
         # running info and lock
         self._running = False
         self._running_lock = Lock()
+
         # playback rate
         self._rate = 1
 
@@ -307,7 +307,7 @@ class RTDataPlayer:
             datagen_function: Callable[[], Generator],
             sonification: Sonification = None
     ) -> None:
-        self.sonification = sonification
+        self._son = sonification
         self._datagen = datagen_function
         self._s = scn.SC.get_default().server
 
@@ -324,10 +324,32 @@ class RTDataPlayer:
         self._logs = None
         self._logs_lock = Lock()
 
+        # hooks
+        self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
+        self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
+
+    @property
+    def sonification(self) -> Sonification:
+        return self._son
+
+    @sonification.setter
+    def sonification(self, son: Sonification) -> None:
+        if not isinstance(son, Sonification):
+            raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
+
+        with self._running_lock:
+            if self._running:
+                # the sonification must be stopped before changing it
+                raise ValueError("Cannot change sonification while playing.")
+        self._son = son
+
     def listen(self) -> None:
         with self._running_lock:
             if self._running:
                 raise ValueError("Already listening!")
+
+        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
+        self.exec_hooks(self._listen_hooks)
 
         self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
@@ -340,10 +362,10 @@ class RTDataPlayer:
 
         # TODO: do it every time???
         # load synthdefs on the server
-        self._s.bundler().add(self.sonification.initialize()).send()
+        self._s.bundler().add(self._son.initialize()).send()
 
         # TODO: is it better to instantiate asap?
-        self._s.bundler().add(self.sonification.start()).send()
+        self._s.bundler().add(self._son.start()).send()
 
         for row in self._datagen():
             with self._running_lock:
@@ -351,7 +373,7 @@ class RTDataPlayer:
                 if not self._running:
                     break
 
-            self._s.bundler().add(self.sonification.process(row)).send()
+            self._s.bundler().add(self._son.process(row)).send()
 
             with self._logs_lock:
                 # if logging is enabled, log the data
@@ -360,12 +382,15 @@ class RTDataPlayer:
                     self._logs = self._logs.append(row)
 
         # send stop bundle
-        self._s.bundler().add(self.sonification.stop()).send()
+        self._s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
         with self._running_lock:
             self._running = False
         _LOGGER.info('listener thread exiting')
+
+    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> None:
+        self._listen_hooks.append((hook, args, kwargs))
 
     def close(self) -> None:
         with self._running_lock:
@@ -374,6 +399,24 @@ class RTDataPlayer:
             # stop workin thread
             self._running = False
         self._worker.join()
+
+        _LOGGER.debug("Executing close hooks %s", self._close_hooks)
+        self.exec_hooks(self._close_hooks)
+
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> None:
+        self._close_hooks.append((hook, args, kwargs))
+
+    @staticmethod
+    def exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
+        for hook, args, kwargs in hooks:
+            if args and kwargs:
+                hook(*args, **kwargs)
+            elif args:
+                hook(*args)
+            elif kwargs:
+                hook(**kwargs)
+            else:
+                hook()
 
     def record_start(self, path='record.wav') -> None:
         # TODO: this sends the recorder definition every time.
