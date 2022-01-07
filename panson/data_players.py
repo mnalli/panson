@@ -8,13 +8,15 @@ from threading import Thread, Lock
 
 from .sonification import Sonification
 
+from typing import Union, Callable, Generator, List, Dict
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
 
 class DataPlayer:
 
-    def __init__(self, sonification=None):
+    def __init__(self, sonification: Sonification = None) -> None:
         self._son = sonification
 
         # reference to default server
@@ -36,12 +38,12 @@ class DataPlayer:
         self._ptr = 0
 
     @property
-    def sonification(self):
+    def sonification(self) -> Sonification:
         return self._son
 
     @sonification.setter
-    def sonification(self, son):
-        if not issubclass(son, Sonification):
+    def sonification(self, son: Sonification) -> None:
+        if not isinstance(son, Sonification):
             raise ValueError(f"Cannot assign a {type(son)} object as sonification")
 
         with self._running_lock:
@@ -51,11 +53,11 @@ class DataPlayer:
         self._son = son
 
     @property
-    def rate(self):
+    def rate(self) -> Union[int, float]:
         return self._rate
 
     @rate.setter
-    def rate(self, rate):
+    def rate(self, rate: Union[int, float]):
         if rate == 0:
             raise ValueError("Cannot set rate to 0.")
 
@@ -69,7 +71,12 @@ class DataPlayer:
         else:
             self._rate = rate
 
-    def load(self, data, fps=None, time_key='timestamp'):
+    def load(
+            self,
+            data: Union[str, pd.DataFrame],
+            fps: Union[int, float] = None,
+            time_key: str = 'timestamp'
+    ) -> 'DataPlayer':
         with self._running_lock:
             if self._running:
                 raise ValueError("Cannot load data while playing.")
@@ -99,7 +106,7 @@ class DataPlayer:
         return self
 
     @staticmethod
-    def _load(df_path):
+    def _load(df_path: str) -> pd.DataFrame:
         # TODO: support all format automatically
         df = pd.read_csv(df_path, sep=r',\s*', engine='python')
         return df
@@ -173,7 +180,7 @@ class DataPlayer:
             self._running = False
         _LOGGER.info('player thread exiting')
 
-    def pause(self):
+    def pause(self) -> None:
         with self._running_lock:
             if not self._running:
                 raise ValueError('Already paused!')
@@ -182,7 +189,7 @@ class DataPlayer:
         self._worker.join()
 
     # TODO: time input
-    def seek(self, idx):
+    def seek(self, idx: int) -> None:
         if not (0 <= idx <= self._df.index[-1]):
             raise ValueError(
                 f"Invalid index {idx}."
@@ -201,7 +208,7 @@ class DataPlayer:
             self._ptr = idx
 
     # TODO: the code in RTDataPlayer is duplicated...
-    def record_start(self, path='record.wav'):
+    def record_start(self, path: str = 'record.wav') -> None:
         # TODO: this sends the recorder definition every time.
         # can we do better?
 
@@ -212,7 +219,7 @@ class DataPlayer:
         # send start bundle to the server
         self._recorder.start()
 
-    def record_stop(self):
+    def record_stop(self) -> None:
         if self._recorder is None:
             raise ValueError("Start the recorder first!")
 
@@ -220,7 +227,8 @@ class DataPlayer:
         self._recorder.stop()
         self._recorder = None
 
-    def _get_score(self):
+    # TODO: export with rate
+    def _get_score(self) -> Dict[float, List[scn.OSCMessage]]:
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
             # load synthdefs on NRT server
@@ -246,14 +254,14 @@ class DataPlayer:
         return bundler.messages()
 
     # TODO: export a precise range?
-    def export(self, out_path):
+    def export(self, out_path: str = 'out.wav') -> None:
         score = self._get_score()
 
         # TODO: support other headers and scorefile paths?
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
-    # def __repr__(self):
-    #     pass
+    def __repr__(self):
+        pass
 
 
 # TODO: add listening hooks
@@ -261,7 +269,11 @@ class DataPlayer:
 
 class RTDataPlayer:
 
-    def __init__(self, datagen_function, sonification=None):
+    def __init__(
+            self,
+            datagen_function: Callable[[], Generator],
+            sonification: Sonification = None
+    ) -> None:
         self.sonification = sonification
         self._datagen = datagen_function
         self._s = scn.SC.get_default().server
@@ -279,7 +291,7 @@ class RTDataPlayer:
         self._logs = None
         self._logs_lock = Lock()
 
-    def listen(self):
+    def listen(self) -> None:
         with self._running_lock:
             if self._running:
                 raise ValueError("Already listening!")
@@ -287,7 +299,7 @@ class RTDataPlayer:
         self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
 
-    def _listen(self):
+    def _listen(self) -> None:
         _LOGGER.info('listener thread starting')
 
         with self._running_lock:
@@ -322,7 +334,7 @@ class RTDataPlayer:
             self._running = False
         _LOGGER.info('listener thread exiting')
 
-    def close(self):
+    def close(self) -> None:
         with self._running_lock:
             if not self._running:
                 raise ValueError('Already closed!')
@@ -330,7 +342,7 @@ class RTDataPlayer:
             self._running = False
         self._worker.join()
 
-    def record_start(self, path='record.wav'):
+    def record_start(self, path='record.wav') -> None:
         # TODO: this sends the recorder definition every time.
         # can we do better?
 
@@ -341,7 +353,7 @@ class RTDataPlayer:
         # send start bundle to the server
         self._recorder.start()
 
-    def record_stop(self):
+    def record_stop(self) -> None:
         if self._recorder is None:
             raise ValueError("Start the recorder first!")
 
@@ -349,13 +361,13 @@ class RTDataPlayer:
         self._recorder.stop()
         self._recorder = None
 
-    def log_start(self):
+    def log_start(self) -> None:
         with self._logs_lock:
             if self._logs is not None:
                 raise ValueError("Already logging.")
             self._logs = pd.DataFrame()
 
-    def log_stop(self):
+    def log_stop(self) -> pd.DataFrame:
         with self._logs_lock:
             if self._logs is None:
                 raise ValueError("Start logging first!")
@@ -363,3 +375,6 @@ class RTDataPlayer:
             self._logs = None
 
         return df
+
+    def __repr__(self):
+        pass
