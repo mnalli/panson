@@ -130,10 +130,10 @@ class DataPlayer:
 
         # TODO: do it every time???
         # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
+        self._s.bundler().add(self._son.safe_initialize()).send()
 
         # TODO: is it better to instantiate asap?
-        self._s.bundler().add(self._son.start()).send()
+        self._s.bundler().add(self._son.safe_start()).send()
 
         start_ptr = self._ptr
         t0 = time()
@@ -160,7 +160,7 @@ class DataPlayer:
                 target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
 
             # process, bundle and send
-            self._s.bundler(target_time).add(self._son.process(row)).send()
+            self._s.bundler(target_time).add(self._son.safe_process(row)).send()
 
             visited_rows += 1
             # update pointer to current row
@@ -173,7 +173,7 @@ class DataPlayer:
                 sleep(waiting_time)
 
         # send stop bundle
-        self._s.bundler().add(self._son.stop()).send()
+        self._s.bundler().add(self._son.safe_stop()).send()
 
         # this is relevant when the for loop ends naturally
         with self._running_lock:
@@ -362,10 +362,10 @@ class RTDataPlayer:
 
         # TODO: do it every time???
         # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
+        self._s.bundler().add(self._son.safe_initialize()).send()
 
         # TODO: is it better to instantiate asap?
-        self._s.bundler().add(self._son.start()).send()
+        self._s.bundler().add(self._son.safe_start()).send()
 
         for row in self._datagen():
             with self._running_lock:
@@ -373,7 +373,7 @@ class RTDataPlayer:
                 if not self._running:
                     break
 
-            self._s.bundler().add(self._son.process(row)).send()
+            self._s.bundler().add(self._son.safe_process(row)).send()
 
             with self._logs_lock:
                 # if logging is enabled, log the data
@@ -382,7 +382,7 @@ class RTDataPlayer:
                     self._logs = self._logs.append(row)
 
         # send stop bundle
-        self._s.bundler().add(self._son.stop()).send()
+        self._s.bundler().add(self._son.safe_stop()).send()
 
         # this is relevant when the for loop ends naturally
         with self._running_lock:

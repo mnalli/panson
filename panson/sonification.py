@@ -3,25 +3,29 @@ import sc3nb as scn
 from sc3nb.osc.osc_communication import Bundler
 
 from pandas import Series
+from threading import Lock
 
 
 class Sonification(ABC):
 
     def __init__(self) -> None:
-        # sync access to sonification parameters
-        # self._mutex = "todo"
-
         # reference to default server
         self.__s = scn.SC.get_default().server
-
-        # list of synthdefs
-        self.synthdefs = None
-        self.params = None
+        # sync access to sonification parameters
+        self._mutex = Lock()
 
     @property
     def _s(self) -> scn.SCServer:
         """Instance of default server"""
         return self.__s
+
+    def get(self, item):
+        with self._mutex:
+            return self.__dict__[item]
+
+    def set(self, key, value):
+        with self._mutex:
+            self.__dict__[key] = value
 
     @abstractmethod
     def initialize(self) -> Bundler:
@@ -79,10 +83,28 @@ class Sonification(ABC):
         """
         pass
 
+    # TODO: refactor
+    def safe_initialize(self):
+        with self._mutex:
+            return self.initialize()
+
+    def safe_start(self):
+        with self._mutex:
+            return self.start()
+
+    def safe_stop(self):
+        with self._mutex:
+            return self.stop()
+
+    def safe_process(self, row):
+        with self._mutex:
+            return self.process(row)
+
     def __repr__(self):
         pass
 
 
+# TODO: use functools.wraps
 # TODO: put inside the class?
 #     it would make more sense, but it would look less aesthetic
 def bundle(fun):
