@@ -5,32 +5,43 @@ from sc3nb.osc.osc_communication import Bundler
 from functools import wraps
 
 from pandas import Series
-from threading import Lock
+from threading import RLock
 
 
 class Sonification(ABC):
 
+    # speed up memory access
+    __slots__ = '_mutex', '__s'
+
     def __init__(self) -> None:
+        # initialize mutex with old __setattr__
+        object.__setattr__(self, '_mutex', RLock())
         # reference to default server
         self.__s = scn.SC.get_default().server
-        # sync access to sonification parameters
-        self._mutex = Lock()
+
+    def __getattribute__(self, name):
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
+            return object.__getattribute__(self, name)
+
+    def __setattr__(self, name, value):
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
+            return object.__setattr__(self, name, value)
+
+    def __delattr__(self, name):
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
+            return object.__delattr__(self, name)
 
     @property
     def _s(self) -> scn.SCServer:
         """Instance of default server"""
         return self.__s
 
-    def get(self, item):
-        with self._mutex:
-            return self.__dict__[item]
-
-    def set(self, key, value):
-        with self._mutex:
-            self.__dict__[key] = value
-
     def initialize(self):
-        with self._mutex:
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
             return self._initialize()
 
     @abstractmethod
@@ -45,7 +56,8 @@ class Sonification(ABC):
         pass
 
     def start(self):
-        with self._mutex:
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
             return self._start()
 
     @abstractmethod
@@ -63,7 +75,8 @@ class Sonification(ABC):
         pass
 
     def stop(self):
-        with self._mutex:
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
             return self._stop()
 
     @abstractmethod
@@ -81,7 +94,8 @@ class Sonification(ABC):
         pass
 
     def process(self, row):
-        with self._mutex:
+        mutex = object.__getattribute__(self, '_mutex')
+        with mutex:
             return self._process(row)
 
     @abstractmethod
