@@ -29,8 +29,12 @@ class Sonification(ABC):
         with self._mutex:
             self.__dict__[key] = value
 
+    def initialize(self):
+        with self._mutex:
+            return self._initialize()
+
     @abstractmethod
-    def initialize(self) -> Bundler:
+    def _initialize(self) -> Bundler:
         """Return OSC messages to initialize the sonification on the server.
 
         Some tasks could be:
@@ -40,8 +44,12 @@ class Sonification(ABC):
         """
         pass
 
+    def start(self):
+        with self._mutex:
+            return self._start()
+
     @abstractmethod
-    def start(self) -> Bundler:
+    def _start(self) -> Bundler:
         """Return OSC messages to be sent at start time.
 
         Some tasks could be:
@@ -54,8 +62,12 @@ class Sonification(ABC):
         """
         pass
 
+    def stop(self):
+        with self._mutex:
+            return self._stop()
+
     @abstractmethod
-    def stop(self) -> Bundler:
+    def _stop(self) -> Bundler:
         """Return OSC messages to be sent at stop time.
 
         Some tasks could be:
@@ -68,8 +80,12 @@ class Sonification(ABC):
         """
         pass
 
+    def process(self, row):
+        with self._mutex:
+            return self._process(row)
+
     @abstractmethod
-    def process(self, row: Series) -> Bundler:
+    def _process(self, row: Series) -> Bundler:
         """Process row and return OSC messages to update the sonification.
 
         The data row can contain information about the timing of the data, but
@@ -84,23 +100,6 @@ class Sonification(ABC):
         :return: Bundler containing the OSC messages
         """
         pass
-
-    # TODO: refactor
-    def safe_initialize(self):
-        with self._mutex:
-            return self.initialize()
-
-    def safe_start(self):
-        with self._mutex:
-            return self.start()
-
-    def safe_stop(self):
-        with self._mutex:
-            return self.stop()
-
-    def safe_process(self, row):
-        with self._mutex:
-            return self.process(row)
 
     def __repr__(self):
         pass
