@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import sc3nb as scn
 from sc3nb.osc.osc_communication import Bundler
 
+from functools import wraps
+
 from pandas import Series
 from threading import Lock
 
@@ -104,19 +106,19 @@ class Sonification(ABC):
         pass
 
 
-# TODO: use functools.wraps
 # TODO: put inside the class?
 #     it would make more sense, but it would look less aesthetic
-def bundle(fun):
+def bundle(f):
     """Decorator that adds automatic bundling to the decorated funcition.
 
     The decorated function will capture messages in a bundler object and return
     it. The bundling does not consider any server latency, making it suitable
     for decorating methods of concrete subclasses of Sonification.
     """
+    @wraps(f)
     def bundle_decorator(*args) -> Bundler:
         with Bundler(send_on_exit=False) as bundler:
-            fun(*args)
+            f(*args)
         return bundler
 
     return bundle_decorator
