@@ -10,33 +10,29 @@ from threading import RLock
 import ipywidgets as widgets
 
 
+class Parameter:
+
+    def __get__(self, instance, owner):
+        with instance._lock:
+            return self.value
+
+    def __set__(self, instance, value):
+        with instance._lock:
+            self.value = value
+
+
 class Sonification(ABC):
 
     # speed up memory access
     __slots__ = '_lock', '__s'
 
     def __init__(self) -> None:
-        # initialize mutex with old __setattr__
-        object.__setattr__(self, '_lock', RLock())
+        # lock for mutual exclusion on sonification parameters
+        self._lock = RLock()
         # reference to default server
         self.__s = scn.SC.get_default().server
         # list of the parameters of the sonification
         self.__parameters = []
-
-    def __getattribute__(self, name):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
-            return object.__getattribute__(self, name)
-
-    def __setattr__(self, name, value):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
-            return object.__setattr__(self, name, value)
-
-    def __delattr__(self, name):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
-            return object.__delattr__(self, name)
 
     @property
     def _s(self) -> scn.SCServer:
@@ -48,8 +44,7 @@ class Sonification(ABC):
             self.__parameters.append(param)
 
     def initialize(self):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
+        with self._lock:
             return self._initialize()
 
     @abstractmethod
@@ -64,8 +59,7 @@ class Sonification(ABC):
         pass
 
     def start(self):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
+        with self._lock:
             return self._start()
 
     @abstractmethod
@@ -83,8 +77,7 @@ class Sonification(ABC):
         pass
 
     def stop(self):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
+        with self._lock:
             return self._stop()
 
     @abstractmethod
@@ -102,8 +95,7 @@ class Sonification(ABC):
         pass
 
     def process(self, row):
-        mutex = object.__getattribute__(self, '_lock')
-        with mutex:
+        with self._lock:
             return self._process(row)
 
     @abstractmethod
