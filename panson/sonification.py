@@ -7,30 +7,34 @@ from functools import wraps
 from pandas import Series
 from threading import RLock
 
+import ipywidgets as widgets
+
 
 class Sonification(ABC):
 
     # speed up memory access
-    __slots__ = '_mutex', '__s'
+    __slots__ = '_lock', '__s'
 
     def __init__(self) -> None:
         # initialize mutex with old __setattr__
-        object.__setattr__(self, '_mutex', RLock())
+        object.__setattr__(self, '_lock', RLock())
         # reference to default server
         self.__s = scn.SC.get_default().server
+        # list of the parameters of the sonification
+        self.__parameters = []
 
     def __getattribute__(self, name):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return object.__getattribute__(self, name)
 
     def __setattr__(self, name, value):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return object.__setattr__(self, name, value)
 
     def __delattr__(self, name):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return object.__delattr__(self, name)
 
@@ -39,8 +43,12 @@ class Sonification(ABC):
         """Instance of default server"""
         return self.__s
 
+    def _register_parameters(self, params: list[(str, int, int)]):
+        for param in params:
+            self.__parameters.append(param)
+
     def initialize(self):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return self._initialize()
 
@@ -56,7 +64,7 @@ class Sonification(ABC):
         pass
 
     def start(self):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return self._start()
 
@@ -75,7 +83,7 @@ class Sonification(ABC):
         pass
 
     def stop(self):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return self._stop()
 
@@ -94,7 +102,7 @@ class Sonification(ABC):
         pass
 
     def process(self, row):
-        mutex = object.__getattribute__(self, '_mutex')
+        mutex = object.__getattribute__(self, '_lock')
         with mutex:
             return self._process(row)
 
@@ -115,8 +123,33 @@ class Sonification(ABC):
         """
         pass
 
-    def __repr__(self):
-        pass
+    def _ipython_display_(self):
+        items = []
+
+        for name, min, max in self.__parameters:
+            value = self.__dict__[name]
+
+            slider = widgets.FloatSlider(
+                value=value,
+                min=min,
+                max=max,
+                step=0.1,
+                description=name + ':',
+                # disabled=False,
+                # continuous_update=False,
+                # orientation='horizontal',
+                # readout=True,
+                # readout_format='.1f',
+            )
+
+            def on_change(v):
+                self.__dict__[name] = v['new']
+
+            slider.observe(on_change, names='value')
+
+            items.append(slider)
+
+        widgets.Box(items)._ipython_display_()
 
 
 # TODO: put inside the class?
