@@ -9,16 +9,86 @@ from threading import RLock
 
 import ipywidgets as widgets
 
+import re
+
 
 class Parameter:
 
+    def __set_name__(self, owner, name):
+        self.public_name = name
+        # name of the attribute saved in the instance
+        self.private_name = '__' + name
+
     def __get__(self, instance, owner):
-        with instance._lock:
-            return self.value
+        # get value from private attribute of the instance
+        return getattr(instance, self.private_name)
 
     def __set__(self, instance, value):
+        # set value in private attribute of the instance
         with instance._lock:
-            self.value = value
+            setattr(instance, self.private_name, value)
+
+
+class SliderParameter(Parameter):
+
+    def __init__(self, min, max, step=0.1):
+        if min >= max:
+            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+        self.min = min
+        self.max = max
+        # TODO: check range
+        self.step = step
+
+    def __set_name__(self, owner, name):
+        super().__set_name__(owner, name)
+        # name of widget attribute in sonification object
+        self.widget_private_name = self.private_name + '_widget'
+
+    def __set__(self, instance, value):
+        if not (self.min <= value <= self.max):
+            raise ValueError(
+                f"value ({value}) must be between min ({self.min}) and max ({self.max})."
+            )
+
+        # update widget and value (through observe callback) atomically
+        # this guarantees that value and widget's value are always in sync
+        with instance._lock:
+            # widget already created
+            if hasattr(instance, self.widget_private_name):
+                # update widget
+                widget = getattr(instance, self.widget_private_name)
+                # We must update the widget and only indirectly update the parameter.
+                # If we would update the parameter directly, the widget would not
+                # be updated.
+                # The callback of the widget will need a RLock
+                # TODO: can we use only the parameter value
+                widget.value = value
+            else:
+                # create widget
+                widget = self.get_ipywidget(value, instance)
+                # assign widget to the instance
+                setattr(instance, self.widget_private_name, widget)
+
+    def get_ipywidget(self, value, instance):
+
+        slider = widgets.FloatSlider(
+            value=value,
+            min=self.min,
+            max=self.max,
+            step=self.step,
+            description=self.public_name + ':',
+        )
+
+        # set the superclass outside of the callback to have the right context
+        superclass = super()
+
+        def on_change(value):
+            # call __set__ from superclass not to re-update indirectly the widget
+            superclass.__set__(instance, value['new'])
+
+        slider.observe(on_change, names='value')
+
+        return slider
 
 
 class Sonification(ABC):
@@ -27,21 +97,16 @@ class Sonification(ABC):
     __slots__ = '_lock', '__s'
 
     def __init__(self) -> None:
-        # lock for mutual exclusion on sonification parameters
+        # lock making sonification operation atomic
+        # we don't want values to change while process is being run
         self._lock = RLock()
         # reference to default server
         self.__s = scn.SC.get_default().server
-        # list of the parameters of the sonification
-        self.__parameters = []
 
     @property
     def _s(self) -> scn.SCServer:
         """Instance of default server"""
         return self.__s
-
-    def _register_parameters(self, params: list[(str, int, int)]):
-        for param in params:
-            self.__parameters.append(param)
 
     def initialize(self):
         with self._lock:
@@ -116,32 +181,18 @@ class Sonification(ABC):
         pass
 
     def _ipython_display_(self):
-        items = []
 
-        for name, min, max in self.__parameters:
-            value = self.__dict__[name]
+        # TODO: is this secure?
+        pattern = re.compile("^__.+_widget$")
 
-            slider = widgets.FloatSlider(
-                value=value,
-                min=min,
-                max=max,
-                step=0.1,
-                description=name + ':',
-                # disabled=False,
-                # continuous_update=False,
-                # orientation='horizontal',
-                # readout=True,
-                # readout_format='.1f',
-            )
+        # gather GUI parameters (defined by the user)
+        widget_list = []
+        # TODO: do ordering - seems already ordered...
+        for key, val in self.__dict__.items():
+            if pattern.fullmatch(key):
+                widget_list.append(val)
 
-            def on_change(v):
-                self.__dict__[name] = v['new']
-
-            slider.observe(on_change, names='value')
-
-            items.append(slider)
-
-        widgets.Box(items)._ipython_display_()
+        widgets.VBox(widget_list)._ipython_display_()
 
 
 # TODO: put inside the class?

@@ -6,12 +6,12 @@ notebooks.
 """
 
 
-from .sonification import Parameter, Sonification, bundle
+from .sonification import Sonification, bundle, Parameter, SliderParameter
 from .data_players import DataPlayer, RTDataPlayer
 
 
 __all__ = [
-    'Parameter', 'Sonification', 'bundle',
+    'Sonification', 'bundle', 'Parameter', 'SliderParameter',
     'DataPlayer', 'RTDataPlayer'
 ]
 
