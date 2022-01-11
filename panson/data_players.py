@@ -4,11 +4,14 @@ from sc3nb import Score, Bundler
 import pandas as pd
 
 from time import time, sleep
-from threading import Thread, Lock
+from threading import Thread
 
 from .sonification import Sonification
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
+
+import ipywidgets as widgets
+from IPython.display import display
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -17,7 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 class DataPlayer:
 
     def __init__(self, sonification: Sonification = None) -> None:
-
         self._son = sonification
         # reference to default server
         self._s = scn.SC.get_default().server
@@ -180,9 +182,9 @@ class DataPlayer:
         self._worker.join()
 
     def seek(self, target: Union[int, float]) -> None:
-        if type(time) == int:
+        if isinstance(target, int):
             self._seek_idx(target)
-        elif type(time) == float:
+        elif isinstance(target, float):
             self._seek_time(target)
         else:
             raise ValueError(
@@ -282,7 +284,65 @@ class DataPlayer:
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
     def _ipython_display_(self):
-        pass
+
+        max_idx = self._df.index[-1]
+
+        slider = widgets.IntSlider(
+            value=self._ptr,
+            min=0,
+            # TODO: if the data is not loaded
+            max=max_idx,
+            layout=widgets.Layout(width='98%')
+        )
+
+        beginning = widgets.Button(icon='fast-backward')
+        end = widgets.Button(icon='fast-forward')
+
+        def on_beginning(button):
+            slider.value = 0
+
+        def on_end(button):
+            slider.value = max_idx
+
+        beginning.on_click(on_beginning)
+        end.on_click(on_end)
+
+        backward = widgets.Button(icon='step-backward')
+        forward = widgets.Button(icon='step-forward')
+
+        def on_backward(button):
+            slider.value -= 1
+
+        def on_forward(button):
+            slider.value += 1
+
+        backward.on_click(on_backward)
+        forward.on_click(on_forward)
+
+        pause = widgets.Button(icon='pause')
+        play = widgets.Button(icon='play')
+
+        def on_pause(button):
+            pass
+
+        def on_play(button):
+            pass
+
+        pause.on_click(on_pause)
+        play.on_click(on_play)
+
+        controls = widgets.HBox([
+                beginning,
+                backward,
+                pause,
+                play,
+                forward,
+                end
+            ])
+        widget = widgets.VBox([slider, controls])
+
+        # display full widget
+        display(widget)
 
 
 class RTDataPlayer:
@@ -425,3 +485,22 @@ class RTDataPlayer:
         self._logs = None
 
         return df
+
+    def _ipython_display_(self):
+
+        listen = widgets.Button(icon='play')
+        close = widgets.Button(icon='stop')
+
+        def on_listen(button):
+            self.listen()
+
+        def on_close(button):
+            self.close()
+
+        listen.on_click(on_listen)
+        close.on_click(on_close)
+
+        controls = widgets.HBox([listen, close])
+
+        # display full widget
+        display(controls)
