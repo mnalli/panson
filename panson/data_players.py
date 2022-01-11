@@ -90,6 +90,8 @@ class DataPlayer:
                 f"Needing {pd.DataFrame} or a path to a csv file."
             )
 
+        self._widget.children[0].max = self._df.index[-1]
+
         self._fps = fps
         self._ptr = 0
 
@@ -286,51 +288,41 @@ class DataPlayer:
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
     def _get_ipywidget(self):
-        max_idx = self._df.index[-1]
 
         slider = widgets.IntSlider(
             value=self._ptr,
             min=0,
             # TODO: if the data is not loaded
-            max=max_idx,
+            # max=max_idx,
             layout=widgets.Layout(width='98%')
         )
 
         beginning = widgets.Button(icon='fast-backward')
         end = widgets.Button(icon='fast-forward')
 
-        def on_beginning(button):
-            slider.value = 0
-
-        def on_end(button):
-            slider.value = max_idx
-
-        beginning.on_click(on_beginning)
-        end.on_click(on_end)
-
         backward = widgets.Button(icon='step-backward')
         forward = widgets.Button(icon='step-forward')
-
-        def on_backward(button):
-            slider.value -= 1
-
-        def on_forward(button):
-            slider.value += 1
-
-        backward.on_click(on_backward)
-        forward.on_click(on_forward)
 
         pause = widgets.Button(icon='pause')
         play = widgets.Button(icon='play')
 
-        def on_pause(button):
-            pass
+        record = widgets.ToggleButton(
+            value=False,
+            description='Record',
+            icon='microphone'
+        )
+        record_out = widgets.Text(
+            value='record.wav',
+            description='Output path:',
+        )
+        # TODO: overwrite check button
+        record_box = widgets.HBox([record, record_out])
 
-        def on_play(button):
-            pass
+        clear_out = widgets.Button(
+            description='Clear output'
+        )
 
-        pause.on_click(on_pause)
-        play.on_click(on_play)
+        out = widgets.Output(layout={'border': '1px solid black'})
 
         controls = widgets.HBox([
             beginning,
@@ -340,7 +332,50 @@ class DataPlayer:
             forward,
             end
         ])
-        widget = widgets.VBox([slider, controls])
+        widget = widgets.VBox([
+            slider,
+            controls,
+            record_box,
+            clear_out,
+            out
+        ])
+
+        # bind callbacks
+
+        def on_beginning(button):
+            slider.value = 0
+
+        def on_end(button):
+            slider.value = self._df.index[-1]
+
+        beginning.on_click(on_beginning)
+        end.on_click(on_end)
+
+        # TODO: atomicity?
+        def on_backward(button):
+            slider.value -= 1
+
+        def on_forward(button):
+            slider.value += 1
+
+        backward.on_click(on_backward)
+        forward.on_click(on_forward)
+
+        def on_pause(button):
+            with out:
+                self.pause()
+
+        def on_play(button):
+            with out:
+                self.play()
+
+        pause.on_click(on_pause)
+        play.on_click(on_play)
+
+        def on_clear(button):
+            out.clear_output()
+
+        clear_out.on_click(on_clear)
 
         return widget
 
