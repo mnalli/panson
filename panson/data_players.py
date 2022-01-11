@@ -25,9 +25,8 @@ class DataPlayer:
         self._recorder = None
         # worker thread
         self._worker = None
-        # running info and lock
+        # run flag
         self._running = False
-        self._running_lock = Lock()
 
         # playback rate
         self._rate = 1
@@ -46,10 +45,9 @@ class DataPlayer:
         if not isinstance(son, Sonification):
             raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
 
-        with self._running_lock:
-            if self._running:
-                # the sonification must be stopped before changing it
-                raise ValueError("Cannot change sonification while playing.")
+        if self._running:
+            # the sonification must be stopped before changing it
+            raise ValueError("Cannot change sonification while playing.")
         self._son = son
 
     @property
@@ -61,9 +59,7 @@ class DataPlayer:
         if rate == 0:
             raise ValueError("Cannot set rate to 0.")
 
-        with self._running_lock:
-            local_running = self._running
-        if local_running:
+        if self._running:
             # restart thread with updated rate
             self.pause()
             self._rate = rate
@@ -77,9 +73,8 @@ class DataPlayer:
             fps: Union[int, float] = None,
             time_key: str = 'timestamp'
     ) -> 'DataPlayer':
-        with self._running_lock:
-            if self._running:
-                raise ValueError("Cannot load data while playing.")
+        if self._running:
+            raise ValueError("Cannot load data while playing.")
 
         if type(data) == str:
             self._df = self._load(data)
@@ -112,9 +107,8 @@ class DataPlayer:
         return df
 
     def play(self):
-        with self._running_lock:
-            if self._running:
-                raise ValueError("Already playing!")
+        if self._running:
+            raise ValueError("Already playing!")
 
         self._worker = Thread(name='player', target=self._play)
         self._worker.start()
@@ -124,9 +118,8 @@ class DataPlayer:
 
         _LOGGER.info('player thread starting')
 
-        with self._running_lock:
-            assert not self._running, "called while running"
-            self._running = True
+        assert not self._running, "called while running"
+        self._running = True
 
         # TODO: do it every time???
         # load synthdefs on the server
@@ -149,10 +142,9 @@ class DataPlayer:
         # iterate over dataframe rows, from the current element on
         for ptr, row in self._df.iloc[start_ptr::rate_sign].iterrows():
 
-            with self._running_lock:
-                if not self._running:
-                    # pause was called
-                    break
+            if not self._running:
+                # pause was called
+                break
 
             if self._fps:
                 target_time = t0 + (visited_rows * 1 / self._fps) / abs(self._rate)
@@ -176,16 +168,14 @@ class DataPlayer:
         self._s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
-        with self._running_lock:
-            self._running = False
+        self._running = False
         _LOGGER.info('player thread exiting')
 
     def pause(self) -> None:
-        with self._running_lock:
-            if not self._running:
-                raise ValueError('Already paused!')
-            # stop workin thread
-            self._running = False
+        if not self._running:
+            raise ValueError('Already paused!')
+        # stop workin thread
+        self._running = False
         self._worker.join()
 
     def seek(self, time: Union[int, float]) -> None:
@@ -229,10 +219,7 @@ class DataPlayer:
                 f"Must be in range [0, {self._df.index[-1]}]"
             )
 
-        with self._running_lock:
-            local_running = self._running
-
-        if local_running:
+        if self._running:
             # restart thread with updated position
             self.pause()
             self._ptr = idx
@@ -293,9 +280,6 @@ class DataPlayer:
         # TODO: support other headers and scorefile paths?
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
-    # def __repr__(self):
-    #     pass
-
 
 # TODO: add listening hooks
 # TODO: add closing hooks
@@ -311,18 +295,14 @@ class RTDataPlayer:
         self._datagen = datagen_function
         self._s = scn.SC.get_default().server
 
+        self._recorder = None
         # worker thread
         self._worker = None
-
-        # running info and lock
+        # run flag
         self._running = False
-        self._running_lock = Lock()
-
-        self._recorder = None
 
         # logs dataframe and lock
         self._logs = None
-        self._logs_lock = Lock()
 
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
@@ -337,16 +317,14 @@ class RTDataPlayer:
         if not isinstance(son, Sonification):
             raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
 
-        with self._running_lock:
-            if self._running:
-                # the sonification must be stopped before changing it
-                raise ValueError("Cannot change sonification while playing.")
+        if self._running:
+            # the sonification must be stopped before changing it
+            raise ValueError("Cannot change sonification while playing.")
         self._son = son
 
     def listen(self) -> None:
-        with self._running_lock:
-            if self._running:
-                raise ValueError("Already listening!")
+        if self._running:
+            raise ValueError("Already listening!")
 
         _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
         self.exec_hooks(self._listen_hooks)
@@ -357,8 +335,7 @@ class RTDataPlayer:
     def _listen(self) -> None:
         _LOGGER.info('listener thread starting')
 
-        with self._running_lock:
-            self._running = True
+        self._running = True
 
         # TODO: do it every time???
         # load synthdefs on the server
@@ -368,36 +345,34 @@ class RTDataPlayer:
         self._s.bundler().add(self._son.start()).send()
 
         for row in self._datagen():
-            with self._running_lock:
+
+            if not self._running:
                 # close was called
-                if not self._running:
-                    break
+                break
 
             self._s.bundler().add(self._son.process(row)).send()
 
-            with self._logs_lock:
-                # if logging is enabled, log the data
-                if self._logs is not None:
-                    # TODO: handle out of memory error
-                    self._logs = self._logs.append(row)
+            # if logging is enabled, log the data
+            if self._logs is not None:
+                # TODO: handle out of memory error
+                self._logs = self._logs.append(row)
+
 
         # send stop bundle
         self._s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
-        with self._running_lock:
-            self._running = False
+        self._running = False
         _LOGGER.info('listener thread exiting')
 
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> None:
         self._listen_hooks.append((hook, args, kwargs))
 
     def close(self) -> None:
-        with self._running_lock:
-            if not self._running:
-                raise ValueError('Already closed!')
-            # stop workin thread
-            self._running = False
+        if not self._running:
+            raise ValueError('Already closed!')
+        # stop workin thread
+        self._running = False
         self._worker.join()
 
         _LOGGER.debug("Executing close hooks %s", self._close_hooks)
@@ -438,19 +413,14 @@ class RTDataPlayer:
         self._recorder = None
 
     def log_start(self) -> None:
-        with self._logs_lock:
-            if self._logs is not None:
-                raise ValueError("Already logging.")
-            self._logs = pd.DataFrame()
+        if self._logs is not None:
+            raise ValueError("Already logging.")
+        self._logs = pd.DataFrame()
 
     def log_stop(self) -> pd.DataFrame:
-        with self._logs_lock:
-            if self._logs is None:
-                raise ValueError("Start logging first!")
-            df = self._logs
-            self._logs = None
+        if self._logs is None:
+            raise ValueError("Start logging first!")
+        df = self._logs
+        self._logs = None
 
         return df
-
-    # def __repr__(self):
-    #     pass
