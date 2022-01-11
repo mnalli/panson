@@ -134,8 +134,9 @@ class DataPlayer:
         if self._fps is None:
             start_timestamp = self._df.iloc[start_ptr][self._time_key]
 
-        # TODO: refactor this variable
-        visited_rows = 0
+        if self._fps:
+            # TODO: refactor this variable
+            visited_rows = 0
         # used to decide the direction of the iteration
         rate_sign = int(self._rate / abs(self._rate))
 
@@ -148,13 +149,13 @@ class DataPlayer:
 
             if self._fps:
                 target_time = t0 + (visited_rows * 1 / self._fps) / abs(self._rate)
+                visited_rows += 1
             else:
                 target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
 
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
 
-            visited_rows += 1
             # update pointer to current row
             self._ptr = ptr
 
@@ -178,15 +179,15 @@ class DataPlayer:
         self._running = False
         self._worker.join()
 
-    def seek(self, time: Union[int, float]) -> None:
+    def seek(self, target: Union[int, float]) -> None:
         if type(time) == int:
-            self._seek_idx(time)
+            self._seek_idx(target)
         elif type(time) == float:
-            self._seek_time(time)
+            self._seek_time(target)
         else:
             raise ValueError(
                 "time must be an int (frame index) or float (seconds). "
-                f"Cannot be {type(time)}."
+                f"Cannot be {type(target)}."
             )
 
     def _seek_time(self, time: float) -> None:
@@ -280,9 +281,9 @@ class DataPlayer:
         # TODO: support other headers and scorefile paths?
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
+    def _ipython_display_(self):
+        pass
 
-# TODO: add listening hooks
-# TODO: add closing hooks
 
 class RTDataPlayer:
 
