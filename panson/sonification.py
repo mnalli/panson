@@ -80,6 +80,7 @@ class SliderParameter(Parameter):
             max=self.max,
             step=self.step,
             description=self.public_name + ':',
+            layout=widgets.Layout(width='98%')
         )
 
         # set the superclass outside of the callback to have the right context
