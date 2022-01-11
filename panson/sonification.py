@@ -63,11 +63,14 @@ class SliderParameter(Parameter):
                 # The callback of the widget will need a RLock
                 # TODO: can we use only the parameter value
                 widget.value = value
+                # the attribute will be set indirectly
             else:
                 # create widget
                 widget = self.get_ipywidget(value, instance)
                 # assign widget to the instance
                 setattr(instance, self.widget_private_name, widget)
+                # set attribute
+                super().__set__(instance, value)
 
     def get_ipywidget(self, value, instance):
 
