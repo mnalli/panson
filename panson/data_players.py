@@ -369,6 +369,9 @@ class RTDataPlayer:
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
         self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
 
+        # create widget only once
+        self._widget = self._get_ipywidget()
+
     @property
     def sonification(self) -> Sonification:
         return self._son
@@ -478,29 +481,91 @@ class RTDataPlayer:
             raise ValueError("Already logging.")
         self._logs = pd.DataFrame()
 
-    def log_stop(self) -> pd.DataFrame:
+    def log_stop(self, path=None) -> pd.DataFrame:
         if self._logs is None:
             raise ValueError("Start logging first!")
         df = self._logs
         self._logs = None
 
+        if path is not None:
+            df.to_csv(path)
+
         return df
 
-    def _ipython_display_(self):
-
+    def _get_ipywidget(self):
         listen = widgets.Button(icon='play')
         close = widgets.Button(icon='stop')
+        # TODO: add pause button ("mute" is more appropriate)
+
+        controls = widgets.HBox([listen, close])
+
+        record = widgets.ToggleButton(
+            value=False,
+            description='Record',
+            icon='microphone'
+        )
+        record_out = widgets.Text(
+            value='record.wav',
+            description='Output path:',
+        )
+        # TODO: overwrite check button
+        record_box = widgets.HBox([record, record_out])
+
+        log = widgets.ToggleButton(
+            value=False,
+            description='Log',
+            icon='save'
+        )
+        log_out = widgets.Text(
+            value='log.csv',
+            description='Output path:',
+        )
+        # TODO: overwrite check button
+        log_box = widgets.HBox([log, log_out])
+
+        clear_out = widgets.Button(
+            description='Clear output'
+        )
+
+        out = widgets.Output(layout={'border': '1px solid black'})
 
         def on_listen(button):
-            self.listen()
+            with out:
+                self.listen()
 
         def on_close(button):
-            self.close()
+            with out:
+                self.close()
 
         listen.on_click(on_listen)
         close.on_click(on_close)
 
-        controls = widgets.HBox([listen, close])
+        def toggle_record(value):
+            with out:
+                if value['new']:
+                    self.record_start(record_out.value)
+                else:
+                    self.record_stop()
 
-        # display full widget
-        display(controls)
+        record.observe(toggle_record, 'value')
+
+        def toggle_log(value):
+            with out:
+                if value['new']:
+                    self.log_start()
+                else:
+                    self.log_stop(log_out.value)
+
+        record.observe(toggle_log, 'value')
+
+        def on_clear(button):
+            out.clear_output()
+
+        clear_out.on_click(on_clear)
+
+        widget = widgets.VBox([controls, record_box, log_box, clear_out, out])
+
+        return widget
+
+    def _ipython_display_(self):
+        display(self._widget)
