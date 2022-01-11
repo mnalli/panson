@@ -38,6 +38,8 @@ class DataPlayer:
         # index of the current data point to play
         self._ptr = 0
 
+        self._widget = self._get_ipywidget()
+
     @property
     def sonification(self) -> Sonification:
         return self._son
@@ -283,8 +285,7 @@ class DataPlayer:
         # TODO: support other headers and scorefile paths?
         Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
 
-    def _ipython_display_(self):
-
+    def _get_ipywidget(self):
         max_idx = self._df.index[-1]
 
         slider = widgets.IntSlider(
@@ -332,17 +333,19 @@ class DataPlayer:
         play.on_click(on_play)
 
         controls = widgets.HBox([
-                beginning,
-                backward,
-                pause,
-                play,
-                forward,
-                end
-            ])
+            beginning,
+            backward,
+            pause,
+            play,
+            forward,
+            end
+        ])
         widget = widgets.VBox([slider, controls])
 
-        # display full widget
-        display(widget)
+        return widget
+
+    def _ipython_display_(self):
+        display(self._widget)
 
 
 class RTDataPlayer:
