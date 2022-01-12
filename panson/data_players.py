@@ -162,8 +162,16 @@ class DataPlayer:
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
 
+            # TODO: not thread safe
             # update pointer to current row
             self._ptr = ptr
+            slider = self._widget.children[0]
+            # TODO: refactor
+            callback = slider._trait_notifiers['value']['change'][0]
+
+            slider.unobserve(callback, 'value')
+            slider.value = self._ptr
+            slider.observe(callback, 'value')
 
             # sleep for the missing time
             waiting_time = target_time - time()
@@ -342,21 +350,31 @@ class DataPlayer:
 
         # bind callbacks
 
+        def on_change(value):
+            with out:
+                self._seek_idx(value['new'])
+
+        slider.observe(on_change, 'value')
+
         def on_beginning(button):
-            slider.value = 0
+            with out:
+                slider.value = 0
 
         def on_end(button):
-            slider.value = self._df.index[-1]
+            with out:
+                slider.value = self._df.index[-1]
 
         beginning.on_click(on_beginning)
         end.on_click(on_end)
 
         # TODO: atomicity?
         def on_backward(button):
-            slider.value -= 1
+            with out:
+                slider.value -= 10
 
         def on_forward(button):
-            slider.value += 1
+            with out:
+                slider.value += 10
 
         backward.on_click(on_backward)
         forward.on_click(on_forward)
