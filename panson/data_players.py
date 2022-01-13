@@ -7,6 +7,7 @@ from time import time, sleep
 from threading import Thread
 
 from .sonification import Sonification
+from .live_features import LiveFeatureDisplay
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
@@ -406,7 +407,8 @@ class RTDataPlayer:
     def __init__(
             self,
             datagen_function: Callable[[], Generator],
-            sonification: Sonification = None
+            sonification: Sonification = None,
+            feature_display: LiveFeatureDisplay = None
     ) -> None:
         self._son = sonification
         self._datagen = datagen_function
@@ -427,6 +429,8 @@ class RTDataPlayer:
 
         # create widget only once
         self._widget = self._get_ipywidget()
+
+        self._feature_display = feature_display
 
     @property
     def sonification(self) -> Sonification:
@@ -477,6 +481,9 @@ class RTDataPlayer:
                 # TODO: handle out of memory error
                 self._logs = self._logs.append(row)
 
+            if self._feature_display:
+                self._feature_display.feed(row)
+
 
         # send stop bundle
         self._s.bundler().add(self._son.stop()).send()
@@ -485,8 +492,11 @@ class RTDataPlayer:
         self._running = False
         _LOGGER.info('listener thread exiting')
 
-    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> None:
+    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayer':
         self._listen_hooks.append((hook, args, kwargs))
+
+        # return self for chaining
+        return self
 
     def close(self) -> None:
         if not self._running:
@@ -498,8 +508,11 @@ class RTDataPlayer:
         _LOGGER.debug("Executing close hooks %s", self._close_hooks)
         self.exec_hooks(self._close_hooks)
 
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> None:
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayer':
         self._close_hooks.append((hook, args, kwargs))
+
+        # return self for chaining
+        return self
 
     @staticmethod
     def exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
