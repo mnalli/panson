@@ -20,7 +20,11 @@ _LOGGER = logging.getLogger(__name__)
 
 class DataPlayer:
 
-    def __init__(self, sonification: Sonification = None) -> None:
+    def __init__(
+            self,
+            sonification: Sonification = None,
+            feature_display: LiveFeatureDisplay = None
+    ) -> None:
         self._son = sonification
         # reference to default server
         self._s = scn.SC.get_default().server
@@ -40,6 +44,7 @@ class DataPlayer:
         self._ptr = 0
 
         self._widget = self._get_ipywidget()
+        self._feature_display = feature_display
 
     @property
     def sonification(self) -> Sonification:
@@ -162,6 +167,9 @@ class DataPlayer:
 
             # process, bundle and send
             self._s.bundler(target_time).add(self._son.process(row)).send()
+
+            if self._feature_display:
+                self._feature_display.feed(row)
 
             # TODO: not thread safe
             # update pointer to current row
@@ -483,7 +491,6 @@ class RTDataPlayer:
 
             if self._feature_display:
                 self._feature_display.feed(row)
-
 
         # send stop bundle
         self._s.bundler().add(self._son.stop()).send()
