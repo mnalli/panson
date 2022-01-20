@@ -25,18 +25,22 @@ class DataPlayer:
             sonification: Sonification = None,
             feature_display: LiveFeatureDisplay = None
     ) -> None:
-        self._son = sonification
         # reference to default server
         self._s = scn.SC.get_default().server
 
-        self._recorder = None
         # worker thread
         self._worker = None
         # run flag
         self._running = False
-
         # playback rate
         self._rate = 1
+
+        self._son = None
+        if sonification:
+            # set sonification and initialize
+            self.sonification = sonification
+
+        self._recorder = None
 
         # load data
         self._df = self._fps = self._time_key = None
@@ -58,7 +62,11 @@ class DataPlayer:
         if self._running:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
+
         self._son = son
+
+        # load synthdefs on the server
+        self._s.bundler().add(self._son.initialize()).send()
 
     @property
     def rate(self) -> Union[int, float]:
@@ -133,11 +141,7 @@ class DataPlayer:
         assert not self._running, "called while running"
         self._running = True
 
-        # TODO: do it every time???
-        # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
-
-        # TODO: is it better to instantiate asap?
+        # send start bundle
         self._s.bundler().add(self._son.start()).send()
 
         start_ptr = self._ptr
@@ -419,15 +423,21 @@ class RTDataPlayer:
             sonification: Sonification = None,
             feature_display: LiveFeatureDisplay = None
     ) -> None:
-        self._son = sonification
-        self._datagen = datagen_function
         self._s = scn.SC.get_default().server
 
-        self._recorder = None
+        self._datagen = datagen_function
+
         # worker thread
         self._worker = None
         # run flag
         self._running = False
+
+        self._son = None
+        if sonification:
+            # set sonification and initialize
+            self.sonification = sonification
+
+        self._recorder = None
 
         # logs dataframe and lock
         self._logs = None
@@ -453,7 +463,11 @@ class RTDataPlayer:
         if self._running:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
+
         self._son = son
+        
+        # load synthdefs on the server
+        self._s.bundler().add(self._son.initialize()).send()
 
     def listen(self) -> None:
         if self._running:
@@ -470,11 +484,7 @@ class RTDataPlayer:
 
         self._running = True
 
-        # TODO: do it every time???
-        # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
-
-        # TODO: is it better to instantiate asap?
+        # send start bundle
         self._s.bundler().add(self._son.start()).send()
 
         for row in self._datagen():
