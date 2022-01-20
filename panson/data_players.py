@@ -311,7 +311,8 @@ class DataPlayer:
             min=0,
             # TODO: if the data is not loaded
             # max=max_idx,
-            layout=widgets.Layout(width='98%')
+            layout=widgets.Layout(width='98%'),
+            # continuous_update=False
         )
 
         beginning = widgets.Button(icon='fast-backward')
@@ -632,7 +633,7 @@ class RTDataPlayer:
                 else:
                     self.log_stop(log_out.value)
 
-        record.observe(toggle_log, 'value')
+        log.observe(toggle_log, 'value')
 
         def on_clear(button):
             out.clear_output()
