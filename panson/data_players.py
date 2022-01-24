@@ -465,7 +465,7 @@ class RTDataPlayer:
             raise ValueError("Cannot change sonification while playing.")
 
         self._son = son
-        
+
         # load synthdefs on the server
         self._s.bundler().add(self._son.initialize()).send()
 

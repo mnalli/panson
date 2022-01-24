@@ -29,15 +29,7 @@ class Parameter:
             setattr(instance, self.private_name, value)
 
 
-class SliderParameter(Parameter):
-
-    def __init__(self, min, max, step=0.1):
-        if min >= max:
-            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
-        self.min = min
-        self.max = max
-        # TODO: check range
-        self.step = step
+class WidgetParameter(Parameter, ABC):
 
     def __set_name__(self, owner, name):
         super().__set_name__(owner, name)
@@ -45,11 +37,6 @@ class SliderParameter(Parameter):
         self.widget_private_name = self.private_name + '_widget'
 
     def __set__(self, instance, value):
-        if not (self.min <= value <= self.max):
-            raise ValueError(
-                f"value ({value}) must be between min ({self.min}) and max ({self.max})."
-            )
-
         # update widget and value (through observe callback) atomically
         # this guarantees that value and widget's value are always in sync
         with instance._lock:
@@ -66,13 +53,35 @@ class SliderParameter(Parameter):
                 # the attribute will be set indirectly
             else:
                 # create widget
-                widget = self.get_ipywidget(value, instance)
+                widget = self._get_ipywidget(value, instance)
                 # assign widget to the instance
                 setattr(instance, self.widget_private_name, widget)
                 # set attribute
                 super().__set__(instance, value)
 
-    def get_ipywidget(self, value, instance):
+    @abstractmethod
+    def _get_ipywidget(self, value, instance):
+        pass
+
+
+class SliderParameter(WidgetParameter):
+
+    def __init__(self, min, max, step=0.1):
+        if min >= max:
+            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+        self.min = min
+        self.max = max
+        # TODO: check range
+        self.step = step
+
+    def __set__(self, instance, value):
+        if not (self.min <= value <= self.max):
+            raise ValueError(
+                f"value ({value}) must be between min ({self.min}) and max ({self.max})."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value, instance):
 
         slider = widgets.FloatSlider(
             value=value,
@@ -93,6 +102,104 @@ class SliderParameter(Parameter):
         slider.observe(on_change, names='value')
 
         return slider
+
+
+class DropdownParameter(WidgetParameter):
+
+    def __init__(self, options):
+        self.options = options
+
+    def __set__(self, instance, value):
+        if not (value in self.options):
+            raise ValueError(
+                f"value ({value}) must be between {self.options}."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value, instance):
+
+        dropdown = widgets.Dropdown(
+            value=value,
+            options=self.options,
+            description=self.public_name + ':'
+        )
+
+        # set the superclass outside of the callback to have the right context
+        superclass = super()
+
+        def on_change(value):
+            # call __set__ from superclass not to re-update indirectly the widget
+            superclass.__set__(instance, value['new'])
+
+        dropdown.observe(on_change, names='value')
+
+        return dropdown
+
+
+class SelectParameter(WidgetParameter):
+
+    def __init__(self, options):
+        self.options = options
+
+    def __set__(self, instance, value):
+        if not (value in self.options):
+            raise ValueError(
+                f"value ({value}) must be between {self.options}."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value, instance):
+
+        select = widgets.Select(
+            value=value,
+            options=self.options,
+            description=self.public_name + ':'
+        )
+
+        # set the superclass outside of the callback to have the right context
+        superclass = super()
+
+        def on_change(value):
+            # call __set__ from superclass not to re-update indirectly the widget
+            superclass.__set__(instance, value['new'])
+
+        select.observe(on_change, names='value')
+
+        return select
+
+
+class ComboboxParameter(WidgetParameter):
+
+    def __init__(self, options):
+        self.options = options
+
+    def __set__(self, instance, value):
+        if not (value in self.options):
+            raise ValueError(
+                f"value ({value}) must be between {self.options}."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value, instance):
+
+        combobox = widgets.Combobox(
+            value=value,
+            placeholder='Choose option',
+            options=self.options,
+            description=self.public_name + ':',
+            ensure_option=True
+        )
+
+        # set the superclass outside of the callback to have the right context
+        superclass = super()
+
+        def on_change(value):
+            # call __set__ from superclass not to re-update indirectly the widget
+            superclass.__set__(instance, value['new'])
+
+        combobox.observe(on_change, names='value')
+
+        return combobox
 
 
 class Sonification(ABC):
