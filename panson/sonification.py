@@ -92,12 +92,10 @@ class SliderParameter(WidgetParameter):
             layout=widgets.Layout(width='98%')
         )
 
-        # set the superclass outside of the callback to have the right context
-        superclass = super()
-
         def on_change(value):
             # call __set__ from superclass not to re-update indirectly the widget
-            superclass.__set__(instance, value['new'])
+            # TODO: fix this ugly thing
+            Parameter.__set__(self, instance, value['new'])
 
         slider.observe(on_change, names='value')
 
