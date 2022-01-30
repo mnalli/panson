@@ -5,21 +5,21 @@ of interactive sonification applications within python and jupyter
 notebooks.
 """
 
-from .sonification import (
-    Sonification, bundle,
-    Parameter, SliderParameter,
+from .sonification import Parameter, Sonification, bundle
+from .widget_parameters import (
+    IntSliderParameter, FloatSliderParameter, FloatLogSliderParameter,
     DropdownParameter, SelectParameter, ComboboxParameter,
-    CheckboxParameter
+    ToggleButtonParameter, CheckboxParameter
 )
 from .data_players import DataPlayer, RTDataPlayer
 from .live_features import LiveFeatureDisplay
 
 
 __all__ = [
-    'Sonification', 'bundle',
-    'Parameter', 'SliderParameter',
+    'Parameter', 'Sonification', 'bundle',
+    'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
-    'CheckboxParameter',
+    'ToggleButtonParameter', 'CheckboxParameter',
     'DataPlayer', 'RTDataPlayer',
     'LiveFeatureDisplay'
 ]
