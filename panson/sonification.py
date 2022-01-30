@@ -200,6 +200,36 @@ class ComboboxParameter(WidgetParameter):
         return combobox
 
 
+class CheckboxParameter(WidgetParameter):
+
+    def __set__(self, instance, value):
+        if type(value) != bool:
+            raise ValueError(
+                f"value ({value}) must be a boolean: got a {type(value)}."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value, instance):
+
+        checkbox = widgets.Checkbox(
+            value=value,
+            description=self.public_name,
+            indent=True
+        )
+
+        # set the superclass outside of the callback to have the right context
+        superclass = super()
+
+        def on_change(value):
+            # call __set__ from superclass not to re-update indirectly the widget
+            # TODO: fix this ugly thing
+            Parameter.__set__(self, instance, value['new'])
+
+        checkbox.observe(on_change, names='value')
+
+        return checkbox
+
+
 class Sonification(ABC):
 
     # speed up memory access

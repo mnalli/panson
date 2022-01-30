@@ -8,7 +8,8 @@ notebooks.
 from .sonification import (
     Sonification, bundle,
     Parameter, SliderParameter,
-    DropdownParameter, SelectParameter, ComboboxParameter
+    DropdownParameter, SelectParameter, ComboboxParameter,
+    CheckboxParameter
 )
 from .data_players import DataPlayer, RTDataPlayer
 from .live_features import LiveFeatureDisplay
@@ -18,6 +19,7 @@ __all__ = [
     'Sonification', 'bundle',
     'Parameter', 'SliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
+    'CheckboxParameter',
     'DataPlayer', 'RTDataPlayer',
     'LiveFeatureDisplay'
 ]
