@@ -2,6 +2,8 @@ import ipywidgets as widgets
 from abc import ABC, abstractmethod
 from .sonification import Parameter
 
+from math import log2
+
 
 class WidgetParameter(Parameter, ABC):
     """Base class for all widget parameters."""
@@ -97,33 +99,52 @@ class FloatSliderParameter(WidgetParameter):
         )
 
 
+class DbSliderParameter(FloatSliderParameter):
+
+    def __init__(self, step=0.1):
+        super().__init__(-90, 0, step)
+
+
+class MidiSliderParameter(FloatSliderParameter):
+
+    def __init__(self, step=1):
+        super().__init__(0, 127, step)
+
+
 class FloatLogSliderParameter(WidgetParameter):
 
-    def __init__(self, min, max, step=0.2, base=10):
-        if min >= max:
-            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
-        self.min = min
-        self.max = max
+    def __init__(self, min_exp, max_exp, step=0.2, base=10):
+        if min_exp >= max_exp:
+            raise ValueError(f'min_exp ({min_exp}) cannot be >= max_exp ({max_exp}).')
+        self.min_exp = min_exp
+        self.max_exp = max_exp
 
         self.step = step
         self.base = base
 
     def __set__(self, instance, value):
-        if not (self.min <= value <= self.max):
+        if not (self.base ** self.min_exp <= value <= self.base ** self.max_exp):
             raise ValueError(
-                f"value ({value}) must be between min ({self.min}) and max ({self.max})."
+                f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
             )
         super().__set__(instance, value)
 
     def _get_ipywidget(self):
         return widgets.FloatLogSlider(
             base=self.base,
-            min=-self.min,
-            max=self.max,
+            min=self.min_exp,
+            max=self.max_exp,
             step=self.step,
             description=self.public_name + ':',
             layout=widgets.Layout(width='98%')
         )
+
+
+class FreqSliderParameter(FloatLogSliderParameter):
+
+    def __init__(self, min_freq=20, max_freq=20000, step=0.2):
+        super().__init__(log2(min_freq), log2(max_freq), step=step, base=2)
+
 
 # TODO: IntRangeSlider and FloatRangeSlider?
 

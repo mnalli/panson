@@ -8,6 +8,7 @@ notebooks.
 from .sonification import Parameter, Sonification, bundle
 from .widget_parameters import (
     IntSliderParameter, FloatSliderParameter, FloatLogSliderParameter,
+    DbSliderParameter, MidiSliderParameter, FreqSliderParameter,
     DropdownParameter, SelectParameter, ComboboxParameter,
     ToggleButtonParameter, CheckboxParameter
 )
@@ -18,6 +19,7 @@ from .live_features import LiveFeatureDisplay
 __all__ = [
     'Parameter', 'Sonification', 'bundle',
     'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
+    'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
     'ToggleButtonParameter', 'CheckboxParameter',
     'DataPlayer', 'RTDataPlayer',
