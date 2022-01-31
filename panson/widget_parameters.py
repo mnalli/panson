@@ -5,42 +5,36 @@ from .sonification import Parameter
 from math import log2
 
 
-class WidgetParameter(Parameter, ABC):
+class WidgetParameter(ABC):
     """Base class for all widget parameters."""
 
     def __set_name__(self, owner, name):
-        super().__set_name__(owner, name)
+        # save name of the descriptor
+        self.public_name = name
         # name of widget attribute in sonification object
-        self.widget_private_name = self.private_name + '_widget'
+        self.widget_private_name = '__' + name + '_widget'
+
+    def __get__(self, instance, owner):
+        # get widget's value
+        return getattr(instance, self.widget_private_name).value
 
     def __set__(self, instance, value):
-        # update widget and value (through observe callback) atomically
-        # this guarantees that value and widget's value are always in sync
+        # update widget atomically:
+        #   blocks if a sonification step is being computed
         with instance._lock:
             if hasattr(instance, self.widget_private_name):
+                # update widget
                 widget = getattr(instance, self.widget_private_name)
-                # update widget (indirectly updates the instance parameter)
                 widget.value = value
             else:
                 # this is executed only the first time
-
-                # create widget (without value)
-                widget = self._get_ipywidget()
-
-                def on_change(val):
-                    # set parameter
-                    Parameter.__set__(self, instance, val['new'])
-
-                # bind callback
-                widget.observe(on_change, names='value')
-
-                # set value (the callback will be executed)
-                widget.value = value
-                # assign widget to the instance
+                # create widget
+                widget = self._get_ipywidget(value)
+                # assign widget to the sonification instance
                 setattr(instance, self.widget_private_name, widget)
 
     @abstractmethod
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         """Return ipywidget (without initial value assigned)."""
         pass
 
@@ -62,8 +56,9 @@ class IntSliderParameter(WidgetParameter):
             )
         super().__set__(instance, value)
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.IntSlider(
+            value=value,
             min=self.min,
             max=self.max,
             step=self.step,
@@ -89,8 +84,9 @@ class FloatSliderParameter(WidgetParameter):
             )
         super().__set__(instance, value)
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.FloatSlider(
+            value=value,
             min=self.min,
             max=self.max,
             step=self.step,
@@ -129,8 +125,9 @@ class FloatLogSliderParameter(WidgetParameter):
             )
         super().__set__(instance, value)
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.FloatLogSlider(
+            value=value,
             base=self.base,
             min=self.min_exp,
             max=self.max_exp,
@@ -165,8 +162,9 @@ class SelectionParameter(WidgetParameter, ABC):
 
 class DropdownParameter(SelectionParameter):
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.Dropdown(
+            value=value,
             options=self.options,
             description=self.public_name + ':'
         )
@@ -174,8 +172,9 @@ class DropdownParameter(SelectionParameter):
 
 class SelectParameter(SelectionParameter):
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.Select(
+            value=value,
             options=self.options,
             description=self.public_name + ':'
         )
@@ -183,8 +182,9 @@ class SelectParameter(SelectionParameter):
 
 class ComboboxParameter(SelectionParameter):
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.Combobox(
+            value=value,
             placeholder='Choose option',
             options=self.options,
             description=self.public_name + ':',
@@ -205,14 +205,18 @@ class BooleanParameter(WidgetParameter, ABC):
 
 class ToggleButtonParameter(BooleanParameter):
 
-    def _get_ipywidget(self):
-        return widgets.ToggleButton(description=self.public_name)
+    def _get_ipywidget(self, value):
+        return widgets.ToggleButton(
+            value=value,
+            description=self.public_name
+        )
 
 
 class CheckboxParameter(BooleanParameter):
 
-    def _get_ipywidget(self):
+    def _get_ipywidget(self, value):
         return widgets.Checkbox(
+            value=value,
             description=self.public_name,
             indent=True
         )

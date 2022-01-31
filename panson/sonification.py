@@ -22,8 +22,6 @@ class Parameter:
     As all descriptors, this must be declared as a class attribute (in a
     subclass of Sonification). It's default value must be assigned in the
     constructor.
-
-    This class is also a base class for graohical parameters.
     """
 
     def __set_name__(self, owner, name):
