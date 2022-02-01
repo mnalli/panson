@@ -56,8 +56,8 @@ class DataPlayer:
 
     @sonification.setter
     def sonification(self, son: Sonification) -> None:
-        if not isinstance(son, Sonification):
-            raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
+        # if not isinstance(son, Sonification):
+        #     raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
 
         if self._running:
             # the sonification must be stopped before changing it
@@ -457,8 +457,8 @@ class RTDataPlayer:
 
     @sonification.setter
     def sonification(self, son: Sonification) -> None:
-        if not isinstance(son, Sonification):
-            raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
+        # if not isinstance(son, Sonification):
+        #     raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
 
         if self._running:
             # the sonification must be stopped before changing it

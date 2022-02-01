@@ -8,6 +8,7 @@ from pandas import Series
 from threading import RLock
 
 import ipywidgets as widgets
+from IPython.display import display
 
 import re
 
@@ -57,7 +58,7 @@ class Sonification(ABC):
         """Instance of default server"""
         return self.__s
 
-    def initialize(self):
+    def initialize(self) -> Bundler:
         with self._lock:
             return self._initialize()
 
@@ -72,7 +73,7 @@ class Sonification(ABC):
         """
         pass
 
-    def start(self):
+    def start(self) -> Bundler:
         with self._lock:
             return self._start()
 
@@ -90,7 +91,7 @@ class Sonification(ABC):
         """
         pass
 
-    def stop(self):
+    def stop(self) -> Bundler:
         with self._lock:
             return self._stop()
 
@@ -108,7 +109,7 @@ class Sonification(ABC):
         """
         pass
 
-    def process(self, row):
+    def process(self, row) -> Bundler:
         with self._lock:
             return self._process(row)
 
@@ -130,18 +131,19 @@ class Sonification(ABC):
         pass
 
     def _ipython_display_(self):
+        title = widgets.Label(value=self.__class__.__name__)
+        # gather GUI parameters (defined by the user)
+        widget_list = [title]
 
         # TODO: is this secure?
         pattern = re.compile("^__.+_widget$")
 
-        # gather GUI parameters (defined by the user)
-        widget_list = []
         # TODO: do ordering - seems already ordered...
         for key, val in self.__dict__.items():
             if pattern.fullmatch(key):
                 widget_list.append(val)
 
-        widgets.VBox(widget_list)._ipython_display_()
+        display(widgets.VBox(widget_list))
 
 
 # TODO: put inside the class?
@@ -160,3 +162,37 @@ def bundle(f):
         return bundler
 
     return bundle_decorator
+
+
+class GroupSonification:
+
+    def __init__(self, sonifications) -> None:
+        self.sonifications = sonifications
+
+    def initialize(self) -> Bundler:
+        bundler = Bundler()
+        for son in self.sonifications:
+            bundler.add(son.initialize())
+        return bundler
+
+    def start(self) -> Bundler:
+        bundler = Bundler()
+        for son in self.sonifications:
+            bundler.add(son.start())
+        return bundler
+
+    def stop(self) -> Bundler:
+        bundler = Bundler()
+        for son in self.sonifications:
+            bundler.add(son.stop())
+        return bundler
+
+    def process(self, row: Series) -> Bundler:
+        bundler = Bundler()
+        for son in self.sonifications:
+            bundler.add(son.process(row))
+        return bundler
+
+    def _ipython_display_(self):
+        for son in self.sonifications:
+            display(son)

@@ -5,7 +5,7 @@ of interactive sonification applications within python and jupyter
 notebooks.
 """
 
-from .sonification import Parameter, Sonification, bundle
+from .sonification import Parameter, Sonification, bundle, GroupSonification
 from .widget_parameters import (
     IntSliderParameter, FloatSliderParameter, FloatLogSliderParameter,
     DbSliderParameter, MidiSliderParameter, FreqSliderParameter,
@@ -17,7 +17,7 @@ from .live_features import LiveFeatureDisplay
 
 
 __all__ = [
-    'Parameter', 'Sonification', 'bundle',
+    'Parameter', 'Sonification', 'bundle', 'GroupSonification',
     'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
     'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
