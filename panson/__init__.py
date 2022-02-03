@@ -9,6 +9,7 @@ from .sonification import Parameter, Sonification, bundle, GroupSonification
 from .widget_parameters import (
     IntSliderParameter, FloatSliderParameter, FloatLogSliderParameter,
     DbSliderParameter, MidiSliderParameter, FreqSliderParameter,
+    IntRangeSliderParameter, FloatRangeSliderParameter,
     DropdownParameter, SelectParameter, ComboboxParameter,
     ToggleButtonParameter, CheckboxParameter
 )
@@ -20,6 +21,7 @@ __all__ = [
     'Parameter', 'Sonification', 'bundle', 'GroupSonification',
     'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
     'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
+    'IntRangeSliderParameter', 'FloatRangeSliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
     'ToggleButtonParameter', 'CheckboxParameter',
     'DataPlayer', 'RTDataPlayer',

@@ -143,7 +143,58 @@ class FreqSliderParameter(FloatLogSliderParameter):
         super().__init__(log2(min_freq), log2(max_freq), step=step, base=2)
 
 
-# TODO: IntRangeSlider and FloatRangeSlider?
+class IntRangeSliderParameter(WidgetParameter):
+
+    def __init__(self, min, max, step=1):
+        if min >= max:
+            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+        self.min = min
+        self.max = max
+
+        self.step = step
+
+    def __set__(self, instance, value):
+        if not (self.min <= value[0] <= self.max and self.min <= value[1] <= self.max):
+            raise ValueError(
+                # f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
+            )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value):
+        return widgets.IntRangeSlider(
+            value=value,
+            min=self.min,
+            max=self.max,
+            step=self.step,
+            description=self.public_name + ':',
+        )
+
+
+class FloatRangeSliderParameter(WidgetParameter):
+
+    def __init__(self, min, max, step=0.1):
+        if min >= max:
+            raise ValueError(f'min_exp ({min}) cannot be >= max_exp ({max}).')
+        self.min = min
+        self.max = max
+
+        self.step = step
+
+    def __set__(self, instance, value):
+        # if not (self.base ** self.min_exp <= value <= self.base ** self.max_exp):
+        #     raise ValueError(
+        #         f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
+        #     )
+        super().__set__(instance, value)
+
+    def _get_ipywidget(self, value):
+        return widgets.FloatRangeSlider(
+            value=value,
+            min=self.min,
+            max=self.max,
+            step=self.step,
+            description=self.public_name + ':'
+        )
 
 
 class SelectionParameter(WidgetParameter, ABC):
