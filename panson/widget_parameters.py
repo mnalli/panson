@@ -143,7 +143,8 @@ class FreqSliderParameter(FloatLogSliderParameter):
         super().__init__(log2(min_freq), log2(max_freq), step=step, base=2)
 
 
-class IntRangeSliderParameter(WidgetParameter):
+class RangeSliderParameter(WidgetParameter, ABC):
+    """Base class for all range sliders widget parameters."""
 
     def __init__(self, min, max, step=1):
         if min >= max:
@@ -154,11 +155,18 @@ class IntRangeSliderParameter(WidgetParameter):
         self.step = step
 
     def __set__(self, instance, value):
-        if not (self.min <= value[0] <= self.max and self.min <= value[1] <= self.max):
+        if not (self.min <= value[0] <= self.max):
             raise ValueError(
-                # f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
+                f"value[0] ({value[0]}) must be between min ({self.min}) and max ({self.max})."
+            )
+        if not (self.min <= value[1] <= self.max):
+            raise ValueError(
+                f"value[1] ({value[1]}) must be between min ({self.min}) and max ({self.max})."
             )
         super().__set__(instance, value)
+
+
+class IntRangeSliderParameter(RangeSliderParameter):
 
     def _get_ipywidget(self, value):
         return widgets.IntRangeSlider(
@@ -170,22 +178,7 @@ class IntRangeSliderParameter(WidgetParameter):
         )
 
 
-class FloatRangeSliderParameter(WidgetParameter):
-
-    def __init__(self, min, max, step=0.1):
-        if min >= max:
-            raise ValueError(f'min_exp ({min}) cannot be >= max_exp ({max}).')
-        self.min = min
-        self.max = max
-
-        self.step = step
-
-    def __set__(self, instance, value):
-        # if not (self.base ** self.min_exp <= value <= self.base ** self.max_exp):
-        #     raise ValueError(
-        #         f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
-        #     )
-        super().__set__(instance, value)
+class FloatRangeSliderParameter(RangeSliderParameter):
 
     def _get_ipywidget(self, value):
         return widgets.FloatRangeSlider(
