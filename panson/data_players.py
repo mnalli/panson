@@ -37,7 +37,6 @@ class DataPlayer:
 
         self._son = None
         if sonification:
-            # set sonification and initialize
             self.sonification = sonification
 
         self._recorder = None
@@ -64,9 +63,6 @@ class DataPlayer:
             raise ValueError("Cannot change sonification while playing.")
 
         self._son = son
-
-        # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
 
     @property
     def rate(self) -> Union[int, float]:
@@ -280,7 +276,7 @@ class DataPlayer:
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
             # load synthdefs on NRT server
-            bundler.add(self.sonification.initialize())
+            bundler.add(self.sonification.init())
 
             # add default group
             bundler.add(self._s.default_group.new(return_msg=True))
@@ -434,7 +430,6 @@ class RTDataPlayer:
 
         self._son = None
         if sonification:
-            # set sonification and initialize
             self.sonification = sonification
 
         self._recorder = None
@@ -465,9 +460,6 @@ class RTDataPlayer:
             raise ValueError("Cannot change sonification while playing.")
 
         self._son = son
-
-        # load synthdefs on the server
-        self._s.bundler().add(self._son.initialize()).send()
 
     def listen(self) -> None:
         if self._running:

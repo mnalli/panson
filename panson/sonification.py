@@ -52,33 +52,28 @@ class Sonification(ABC):
         self._lock = RLock()
         # reference to default server
         self.__s = scn.SC.get_default().server
+        # send initialization bundle
+        self.__s.bundler().add(self.init()).send()
 
     @property
     def _s(self) -> scn.SCServer:
         """Instance of default server"""
         return self.__s
 
-    def initialize(self) -> Bundler:
-        with self._lock:
-            return self._initialize()
-
     @abstractmethod
-    def _initialize(self) -> Bundler:
+    def init(self) -> Bundler:
         """Return OSC messages to initialize the sonification on the server.
 
         Some tasks could be:
         * Send SynthDefs
+        * Allocate buffers
 
         :return: Bundler containing the OSC messages
         """
         pass
 
-    def start(self) -> Bundler:
-        with self._lock:
-            return self._start()
-
     @abstractmethod
-    def _start(self) -> Bundler:
+    def start(self) -> Bundler:
         """Return OSC messages to be sent at start time.
 
         Some tasks could be:
@@ -91,12 +86,8 @@ class Sonification(ABC):
         """
         pass
 
-    def stop(self) -> Bundler:
-        with self._lock:
-            return self._stop()
-
     @abstractmethod
-    def _stop(self) -> Bundler:
+    def stop(self) -> Bundler:
         """Return OSC messages to be sent at stop time.
 
         Some tasks could be:
@@ -169,7 +160,7 @@ class GroupSonification:
     def __init__(self, sonifications) -> None:
         self.sonifications = sonifications
 
-    def initialize(self) -> Bundler:
+    def init(self) -> Bundler:
         bundler = Bundler()
         for son in self.sonifications:
             bundler.add(son.initialize())
