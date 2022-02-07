@@ -1,5 +1,6 @@
 import sc3nb as scn
 from sc3nb import Score, Bundler
+from sc3nb.sc_objects.server import ServerOptions
 
 import pandas as pd
 
@@ -13,6 +14,8 @@ from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
 import ipywidgets as widgets
 from IPython.display import display
+
+import subprocess
 
 import logging
 _LOGGER = logging.getLogger(__name__)
@@ -264,6 +267,7 @@ class DataPlayer:
 
     # TODO: export with rate
     def _get_score(self) -> Dict[float, List[scn.OSCMessage]]:
+
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
 
@@ -290,12 +294,35 @@ class DataPlayer:
 
         return bundler.messages()
 
-    # TODO: export a precise range?
-    def export(self, out_path: str = 'out.wav') -> None:
+    def export(
+            self,
+            out_file: str = 'out.wav',
+            sample_rate: int = 44100,
+            header_format: str = "AIFF",
+            sample_format: str = "int16",
+            options: ServerOptions = None,
+    ) -> subprocess.CompletedProcess:
+        """Render current sonification using NRT synthesis.
+
+        :param out_file: Path of the resulting sound file.
+        :param sample_rate: sample rate for synthesis
+        :param header_format: header format of the output file
+        :param sample_format: sample format of the output file
+        :param options: instance of server options to specify server options
+        :return: Completed scsynth non-realtime process.
+        """
+
         score = self._get_score()
 
-        # TODO: support other headers and scorefile paths?
-        Score.record_nrt(score, "/tmp/score.osc", out_path, header_format="WAV")
+        return Score.record_nrt(
+            score,
+            "/tmp/score.osc",   # throw away score file
+            out_file,
+            sample_rate=sample_rate,
+            header_format=header_format,
+            sample_format=sample_format,
+            options=options,
+        )
 
     def _get_ipywidget(self):
 
