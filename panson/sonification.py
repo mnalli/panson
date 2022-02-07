@@ -4,6 +4,7 @@ from sc3nb.osc.osc_communication import Bundler
 from sc3nb.sc_objects.server import SCServer
 
 from functools import wraps
+from functools import reduce
 
 from pandas import Series
 from threading import RLock
@@ -162,6 +163,19 @@ def bundle(f):
 class GroupSonification:
 
     def __init__(self, sonifications):
+        for son in sonifications:
+            if not isinstance(son, Sonification):
+                raise ValueError(
+                    f"Class {type(son)} is not a subclass of Sonification.")
+
+        s = reduce(
+            (lambda s1, s2: s1 if s1 == s2 else None),
+            map(lambda son: son.s, sonifications)
+        )
+        if not s:
+            ValueError("Not all subsonification use the same server.")
+
+        self.s = s
         self.sonifications = sonifications
 
     def init(self) -> Bundler:
