@@ -1,6 +1,5 @@
 import ipywidgets as widgets
 from abc import ABC, abstractmethod
-from .sonification import Parameter
 
 from math import log2
 

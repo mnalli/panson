@@ -24,10 +24,7 @@ class DataPlayer:
             self,
             sonification: Sonification = None,
             feature_display: LiveFeatureDisplay = None
-    ) -> None:
-        # reference to default server
-        self._s = scn.SC.get_default().server
-
+    ):
         # worker thread
         self._worker = None
         # run flag
@@ -138,7 +135,7 @@ class DataPlayer:
         self._running = True
 
         # send start bundle
-        self._s.bundler().add(self._son.start()).send()
+        self._son.s.bundler().add(self._son.start()).send()
 
         start_ptr = self._ptr
         t0 = time()
@@ -166,7 +163,7 @@ class DataPlayer:
                 target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
 
             # process, bundle and send
-            self._s.bundler(target_time).add(self._son.process(row)).send()
+            self._son.s.bundler(target_time).add(self._son.process(row)).send()
 
             if self._feature_display:
                 self._feature_display.feed(row)
@@ -189,7 +186,7 @@ class DataPlayer:
                 sleep(waiting_time)
 
         # send stop bundle
-        self._s.bundler().add(self._son.stop()).send()
+        self._son.s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
         self._running = False
@@ -259,7 +256,7 @@ class DataPlayer:
         if self._recorder is not None:
             raise ValueError("Recorder already working.")
 
-        self._recorder = scn.Recorder(path=path, server=self._s)
+        self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
         self._recorder.start()
 
@@ -275,11 +272,13 @@ class DataPlayer:
     def _get_score(self) -> Dict[float, List[scn.OSCMessage]]:
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
+
+            # TODO: we cannot allocate resources every time
             # load synthdefs on NRT server
             bundler.add(self.sonification.init())
 
             # add default group
-            bundler.add(self._s.default_group.new(return_msg=True))
+            bundler.add(self._son.s.default_group.new(return_msg=True))
 
             # instantiate synths
             bundler.add(self.sonification.start())
@@ -418,9 +417,7 @@ class RTDataPlayer:
             datagen_function: Callable[[], Generator],
             sonification: Sonification = None,
             feature_display: LiveFeatureDisplay = None
-    ) -> None:
-        self._s = scn.SC.get_default().server
-
+    ):
         self._datagen = datagen_function
 
         # worker thread
@@ -477,7 +474,7 @@ class RTDataPlayer:
         self._running = True
 
         # send start bundle
-        self._s.bundler().add(self._son.start()).send()
+        self._son.s.bundler().add(self._son.start()).send()
 
         for row in self._datagen():
 
@@ -485,7 +482,7 @@ class RTDataPlayer:
                 # close was called
                 break
 
-            self._s.bundler().add(self._son.process(row)).send()
+            self._son.s.bundler().add(self._son.process(row)).send()
 
             # if logging is enabled, log the data
             if self._logs is not None:
@@ -496,7 +493,7 @@ class RTDataPlayer:
                 self._feature_display.feed(row)
 
         # send stop bundle
-        self._s.bundler().add(self._son.stop()).send()
+        self._son.s.bundler().add(self._son.stop()).send()
 
         # this is relevant when the for loop ends naturally
         self._running = False
@@ -543,7 +540,7 @@ class RTDataPlayer:
         if self._recorder is not None:
             raise ValueError("Recorder already working.")
 
-        self._recorder = scn.Recorder(path=path, server=self._s)
+        self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
         self._recorder.start()
 

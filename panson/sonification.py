@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import sc3nb as scn
 from sc3nb.osc.osc_communication import Bundler
+from sc3nb.sc_objects.server import SCServer
 
 from functools import wraps
 
@@ -43,21 +44,20 @@ class Parameter:
 
 class Sonification(ABC):
 
-    # speed up memory access
     __slots__ = '_lock', '__s'
 
-    def __init__(self) -> None:
-        # lock making sonification operation atomic
+    def __init__(self, s: SCServer = None):
+        # lock making sonification operations atomic
         # we don't want values to change while process is being run
         self._lock = RLock()
-        # reference to default server
-        self.__s = scn.SC.get_default().server
+
+        self.__s = s or scn.SC.get_default().server
         # send initialization bundle
         self.__s.bundler().add(self.init()).send()
 
     @property
-    def _s(self) -> scn.SCServer:
-        """Instance of default server"""
+    def s(self) -> scn.SCServer:
+        """Server instance"""
         return self.__s
 
     @abstractmethod
@@ -157,7 +157,7 @@ def bundle(f):
 
 class GroupSonification:
 
-    def __init__(self, sonifications) -> None:
+    def __init__(self, sonifications):
         self.sonifications = sonifications
 
     def init(self) -> Bundler:
