@@ -6,7 +6,7 @@ import pandas as pd
 from time import time, sleep
 from threading import Thread
 
-from .sonification import Sonification
+from .sonification import Sonification, GroupSonification
 from .live_features import LiveFeatureDisplay
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
@@ -22,7 +22,7 @@ class DataPlayer:
 
     def __init__(
             self,
-            sonification: Sonification = None,
+            sonification: Union[Sonification, GroupSonification] = None,
             feature_display: LiveFeatureDisplay = None
     ):
         # worker thread
@@ -32,9 +32,7 @@ class DataPlayer:
         # playback rate
         self._rate = 1
 
-        self._son = None
-        if sonification:
-            self.sonification = sonification
+        self._son = sonification
 
         self._recorder = None
 
@@ -47,18 +45,14 @@ class DataPlayer:
         self._feature_display = feature_display
 
     @property
-    def sonification(self) -> Sonification:
+    def sonification(self) -> Union[Sonification, GroupSonification]:
         return self._son
 
     @sonification.setter
-    def sonification(self, son: Sonification) -> None:
-        # if not isinstance(son, Sonification):
-        #     raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
-
+    def sonification(self, son: Union[Sonification, GroupSonification]) -> None:
         if self._running:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
-
         self._son = son
 
     @property
@@ -415,7 +409,7 @@ class RTDataPlayer:
     def __init__(
             self,
             datagen_function: Callable[[], Generator],
-            sonification: Sonification = None,
+            sonification: Union[Sonification, GroupSonification] = None,
             feature_display: LiveFeatureDisplay = None
     ):
         self._datagen = datagen_function
@@ -425,13 +419,11 @@ class RTDataPlayer:
         # run flag
         self._running = False
 
-        self._son = None
-        if sonification:
-            self.sonification = sonification
+        self._son = sonification
 
         self._recorder = None
 
-        # logs dataframe and lock
+        # logs dataframe
         self._logs = None
 
         # hooks
@@ -444,18 +436,14 @@ class RTDataPlayer:
         self._feature_display = feature_display
 
     @property
-    def sonification(self) -> Sonification:
+    def sonification(self) -> Union[Sonification, GroupSonification]:
         return self._son
 
     @sonification.setter
-    def sonification(self, son: Sonification) -> None:
-        # if not isinstance(son, Sonification):
-        #     raise ValueError(f"Cannot assign a {type(son)} object as sonification.")
-
+    def sonification(self, son):
         if self._running:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
-
         self._son = son
 
     def listen(self) -> None:
