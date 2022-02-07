@@ -86,7 +86,6 @@ class Sonification(ABC):
         """
         pass
 
-    @abstractmethod
     def stop(self) -> Bundler:
         """Return OSC messages to be sent at stop time.
 
@@ -96,9 +95,14 @@ class Sonification(ABC):
         * free a group containing all the synths relative to this sonification
         * do nothing (in case the sonification stops smoothly automatically)
 
+        The default behaviour (in case this method is not overwritten) is that
+        the default group is freed.
+
         :return: Bundler containing the OSC messages
         """
-        pass
+        with Bundler(send_on_exit=False) as bundler:
+            self.s.free_all(root=False)
+        return bundler
 
     def process(self, row) -> Bundler:
         with self._lock:
