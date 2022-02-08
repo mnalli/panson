@@ -265,8 +265,7 @@ class DataPlayer:
         self._recorder.stop()
         self._recorder = None
 
-    # TODO: export with rate
-    def _get_score(self) -> Dict[float, List[scn.OSCMessage]]:
+    def _get_score(self, end_delay) -> Dict[float, List[scn.OSCMessage]]:
 
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
@@ -278,29 +277,33 @@ class DataPlayer:
             # add default group
             bundler.add(self._son.s.default_group.new(return_msg=True))
 
-            # instantiate synths
             bundler.add(self.sonification.start())
 
-            # iterate over dataframe rows
-            for _, row in self._df.iterrows():
-                # lend over row (pd.Series) to Sonification
-                bundler.add(row[self._time_key], self.sonification.process(row))
+            for i, row in self._df.iterrows():
+                if self._fps:
+                    timestamp = i / self._fps / self.rate
+                else:
+                    timestamp = row[self._time_key] / self.rate
+                bundler.add(timestamp, self.sonification.process(row))
 
-            # TODO: call sonification.stop???
+            # stop sonification on last message
+            # useful if stop triggers a gate
+            bundler.add(timestamp, self.sonification.stop())
 
-            # TODO: this way the last line will not count? do we want to add an offset?
-            # /c_set [0, 0] will close the audio file
-            bundler.add(row[self._time_key], "/c_set", [0, 0])
+            end_timestamp = timestamp + end_delay
+            # close the audio file
+            bundler.add(end_timestamp, "/c_set", [0, 0])
 
         return bundler.messages()
 
     def export(
             self,
-            out_file: str = 'out.wav',
+            out_file: str = 'out',
             sample_rate: int = 44100,
             header_format: str = "AIFF",
             sample_format: str = "int16",
             options: ServerOptions = None,
+            end_delay: float = 0.1
     ) -> subprocess.CompletedProcess:
         """Render current sonification using NRT synthesis.
 
@@ -309,10 +312,14 @@ class DataPlayer:
         :param header_format: header format of the output file
         :param sample_format: sample format of the output file
         :param options: instance of server options to specify server options
+        :param end_delay: time offset to add to the end of the file before
+            putting the end tag
         :return: Completed scsynth non-realtime process.
         """
 
-        score = self._get_score()
+        score = self._get_score(end_delay)
+
+        print(f'Rendering with rate == {self.rate}')
 
         return Score.record_nrt(
             score,
@@ -321,7 +328,7 @@ class DataPlayer:
             sample_rate=sample_rate,
             header_format=header_format,
             sample_format=sample_format,
-            options=options,
+            options=options
         )
 
     def _get_ipywidget(self):
