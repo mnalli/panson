@@ -17,6 +17,8 @@ from IPython.display import display
 
 import subprocess
 
+import copy
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,28 +269,33 @@ class DataPlayer:
 
     def _get_score(self, end_delay) -> Dict[float, List[scn.OSCMessage]]:
 
+        # shallow copy: this works only if the user redefines object that would
+        # otherwise be modified in place. The structure of the framework should
+        # push the user to do so.
+        clone = copy.copy(self.sonification)
+
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
 
-            # TODO: we cannot allocate resources every time
-            # load synthdefs on NRT server
-            bundler.add(self.sonification.init())
+            # if this allocates buffers or busses, the allocators will change
+            # state even if the message is not sent to the server
+            bundler.add(clone.init_bundle)
 
             # add default group
-            bundler.add(self._son.s.default_group.new(return_msg=True))
+            bundler.add(clone.s.default_group.new(return_msg=True))
 
-            bundler.add(self.sonification.start())
+            bundler.add(clone.start())
 
             for i, row in self._df.iterrows():
                 if self._fps:
                     timestamp = i / self._fps / self.rate
                 else:
                     timestamp = row[self._time_key] / self.rate
-                bundler.add(timestamp, self.sonification.process(row))
+                bundler.add(timestamp, clone.process(row))
 
             # stop sonification on last message
             # useful if stop triggers a gate
-            bundler.add(timestamp, self.sonification.stop())
+            bundler.add(timestamp, clone.stop())
 
             end_timestamp = timestamp + end_delay
             # close the audio file

@@ -12,6 +12,8 @@ from threading import RLock
 import ipywidgets as widgets
 from IPython.display import display
 
+from typing import final
+
 import re
 
 
@@ -47,14 +49,23 @@ class Sonification(ABC):
 
     __slots__ = '_lock', '__s'
 
-    def __init__(self, s: SCServer = None):
+    @final
+    def __init__(
+            self,
+            *args,
+            s: SCServer = None,
+            **kwargs
+    ):
         # lock making sonification operations atomic
         # we don't want values to change while process is being run
         self._lock = RLock()
-
         self.__s = s or scn.SC.get_default().server
-        # send initialization bundle
-        self.__s.bundler().add(self.init()).send()
+
+        # user-defined initialization
+        self.init_parameters(*args, **kwargs)
+
+        self.init_bundle = self.init_server()
+        self.__s.bundler().add(self.init_bundle).send()
 
     @property
     def s(self) -> scn.SCServer:
@@ -62,12 +73,21 @@ class Sonification(ABC):
         return self.__s
 
     @abstractmethod
-    def init(self) -> Bundler:
+    def init_parameters(self, *args, **kwargs) -> None:
+        """Set initialization values for all the parameters.
+
+        This method is called only when the object is created.
+        """
+        pass
+
+    @abstractmethod
+    def init_server(self) -> Bundler:
         """Return OSC messages to initialize the sonification on the server.
 
         Some tasks could be:
         * Send SynthDefs
         * Allocate buffers
+        * Allocate busses
 
         :return: Bundler containing the OSC messages
         """
@@ -126,6 +146,22 @@ class Sonification(ABC):
         """
         pass
 
+    def free(self) -> None:
+        """Free server resources allocated in init_server().
+
+        This method must be overridden if this sonification allocates resources
+        for buffers or busses.
+
+        The method returns None because the allocators are part of the client
+        and no message must be sent to the server.
+
+        This method is not called automatically at garbage collection time.
+        In a jupyter notebook context, the environment keeps multiple references
+        to objects that are displayed in the notebook, making automatic release
+        of resources at garbage collection time not reliable.
+        """
+        pass
+
     def _ipython_display_(self):
         title = widgets.Label(value=self.__class__.__name__)
         # gather GUI parameters (defined by the user)
@@ -177,6 +213,10 @@ class GroupSonification:
 
         self.s = s
         self.sonifications = sonifications
+
+        self.init_bundle = Bundler()
+        for son in sonifications:
+            self.init_bundle.add(son.init_bundle)
 
     def init(self) -> Bundler:
         bundler = Bundler()
