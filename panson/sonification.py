@@ -178,8 +178,6 @@ class Sonification(ABC):
         display(widgets.VBox(widget_list))
 
 
-# TODO: put inside the class?
-#     it would make more sense, but it would look less aesthetic
 def bundle(f):
     """Decorator that adds automatic bundling to the decorated funcition.
 
