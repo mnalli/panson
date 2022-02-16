@@ -17,20 +17,119 @@ import sys
 import multiprocessing as mp
 import numpy as np
 
-# from enum import Enum
-
-
-class VideoPlayerServer:
-    pass
-
-
-class VideoPlayer:
-    pass
+import pims
 
 
 class Communicate(QObject):
 
     updateImg = pyqtSignal(np.ndarray)
+
+
+class VideoPlayerServer:
+
+    def __init__(
+        self,
+        file_path: str,
+        conn: mp.connection.Connection,
+        on_top: bool = True
+    ):
+        self._file_path = file_path
+        # TODO: Video is the correct class to use?
+        self._video = pims.Video(file_path)
+
+        # pipe end
+        self._conn = conn
+
+        # threads
+        self._receiver_thread = threading.Thread(target=self._receiver)
+
+        self.c = Communicate()
+        self.c.updateImg.connect(self.update_img)
+
+        # playback running
+        self._running = False
+
+        # GUI
+        self.app = QtWidgets.QApplication([])
+        self._win = QtWidgets.QMainWindow()
+        self._win.setWindowTitle(f'File: {file_path}')
+
+        # window always on top
+        if on_top:
+            self._win.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+
+        # black image
+        self._img = pg.ImageItem()
+        self._img.setAutoDownsample(True)
+
+        self._img_gv = pg.GraphicsView()
+        self._img_gv.addItem(self._img)
+
+        self._win.setCentralWidget(self._img_gv)
+
+        # print(f"{self._width} x {self._height} @ {self._fps} fps")
+        # self._win.setGeometry(1000, 0, self._width, self._height)
+
+        self._win.show()
+
+    def update_img(self, img):
+        self._img.setImage(img)
+
+    def start(self):
+        self._running = True
+        self._receiver_thread.start()
+
+    def _receiver(self):
+        while self._running:
+            cmd = self._conn.recv()
+            self.__getattribute__(cmd[0])(*cmd[1:])
+
+        # end main loop
+        self.app.exit()
+
+    # COMMANDS
+
+    def seek(self, idx: int):
+        frame = self._video[idx]
+        self.c.updateImg.emit(frame.swapaxes(0, 1))
+
+    def quit(self):
+        self._running = False
+        self._conn.send(0)
+        self._conn.close()
+
+
+class VideoPlayer:
+
+    def __init__(self, file_path: str, **kwargs):
+
+        self._conn, child_conn = mp.Pipe()
+        p = mp.Process(
+            target=self._server_main,
+            args=(file_path, child_conn,),
+            kwargs=kwargs,
+        )
+
+        # start server process
+        p.start()
+
+    @staticmethod
+    def _server_main(file_path, conn, **kwargs):
+        vp = VideoPlayerServer(file_path, conn, **kwargs)
+        # start threads
+        vp.start()
+        # start main loop
+        sys.exit(vp.app.exec())
+
+    def get_reply(self):
+        return self._conn.recv()
+
+    def seek(self, idx: int):
+        self._conn.send(('seek', idx))
+
+    def quit(self):
+        self._conn.send(('quit',))
+        self._conn.close()
 
 
 class RTVideoPlayerServer:
@@ -88,9 +187,8 @@ class RTVideoPlayerServer:
         if on_top:
             self._win.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 
-        self._writer: cv2.VideoWriter = None
-        #
         self._fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        self._writer: cv2.VideoWriter = None
 
         # capture device
         self._capture = cv2.VideoCapture(self._device_id)
@@ -210,7 +308,7 @@ class RTVideoPlayer:
 
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
-            target=self._start_server,
+            target=self._server_main,
             args=(child_conn,),
             kwargs=kwargs,
         )
@@ -219,7 +317,7 @@ class RTVideoPlayer:
         p.start()
 
     @staticmethod
-    def _start_server(conn, **kwargs):
+    def _server_main(conn, **kwargs):
         vp = RTVideoPlayerServer(conn, **kwargs)
         # start threads
         vp.start()
@@ -235,16 +333,10 @@ class RTVideoPlayer:
     def set_filename(self, filename: str):
         self._conn.send(('filename', filename))
 
-    def prepare(self):
-        self._conn.send(('prepare',))
-
     def record(self):
         self._conn.send(('record',))
 
-    def pause(self):
-        self._conn.send(('pause',))
-
-    def cancel(self):
+    def stop(self):
         self._conn.send(('stop',))
 
     def quit(self):
