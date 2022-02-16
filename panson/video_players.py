@@ -57,7 +57,8 @@ class RTVideoPlayerServer:
         self._recording = False
 
         # file name
-        self._out_file_prefix = self._out_file_suffix = None
+        self._out_file_prefix = 'test'
+        self._out_file_suffix = 'avi'
 
         #
         self._device_id = device
@@ -107,70 +108,68 @@ class RTVideoPlayerServer:
         self._img.setImage(img)
 
     def start(self):
+        self._running = True
         self._receiver_thread.start()
         self._recorder_thread.start()
 
-    def _receiver(self):
-        self._running = True
+    def start_recording(self):
+        if self.auto_enumerate_files:
+            self.fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
+            self._run_counter += 1
+        else:
+            self.fname = self._out_file_prefix + "." + self._out_file_suffix
 
+        self._writer = cv2.VideoWriter(
+            self.fname, self._fourcc, self._fps, (self._width, self._height)
+        )
+
+        self.frame_counter = 0
+        # to hold [cnt, timestamp]
+        self.frametimes = []
+        self._t0 = time.time()
+
+    def stop_recording(self):
+        self._writer.release()
+        print("Release writer")
+
+        np.savetxt(
+            f"{self.fname}.csv",
+            np.array(self.frametimes),
+            delimiter=',',
+            fmt='%g',
+            header="# frame_number, timestamp[s]"
+        )
+
+    def _receiver(self):
         while self._running:
             cmd = self._conn.recv()
             self.__getattribute__(cmd[0])(*cmd[1:])
 
-        # if recording, stop
-        # self._recording = False
-        self._recorder_thread.join()
-
-        self._capture.release()
-        print("Release capture")
-
-        # end main loop
-        self.app.exit()
-
     def _recorder(self):
-
-        if self.auto_enumerate_files:
-            fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
-            self._run_counter += 1
-        else:
-            fname = self._out_file_prefix + "." + self._out_file_suffix
-
-        # self._writer = cv2.VideoWriter(
-        #     fname, self._fourcc, self._fps, (self._width, self._height)
-        # )
-
-        # frame_counter = 0
-        # to hold [cnt, timestamp]
-        # frametimes = []
-        # self._t0 = time.time()
 
         while self._running:
             grabbed, frame = self._capture.read()
 
             assert grabbed
 
-            # t = time.time()
-            # print(t - self._t0)
-
-            # frametimes.append((frame_counter, t - self._t0))
-            # frame_counter += 1
-
-            # print(grabbed)
-
-            # self._writer.write(frame)
-
             self.c.updateImg.emit(frame[:, :, (2, 1, 0)].swapaxes(0, 1))
 
-        # self._writer.release()
-        # print("VCR: release writer")
+            if self._recording:
+                t = time.time()
 
-        # np.savetxt(
-        #     f"{fname}.csv",
-        #     np.array(frametimes),
-        #     delimiter=',',
-        #     fmt='%g',
-        #     header="# frame_number, timestamp[s]"
-        # )
+                self.frametimes.append((self.frame_counter, t - self._t0))
+                self.frame_counter += 1
+
+                self._writer.write(frame)
+
+        if self._recording:
+            self.stop_recording()
+
+        self._capture.release()
+        print("Release capture")
+
+        # end main loop
+        self.app.exit()
 
     # COMMANDS
 
@@ -188,13 +187,12 @@ class RTVideoPlayerServer:
         self._conn.send(0)
 
     def record(self):
+        self.start_recording()
         self._recording = True
-        self._recorder_thread = threading.Thread(target=self._recorder)
-        # TODO: check if already recording
-        self._recorder_thread.start()
         self._conn.send(self._t0)
 
     def stop(self):
+        self.stop_recording()
         # cancel recording - will let thread run come to an end
         self._recording = False
         self._recorder_thread.join()
