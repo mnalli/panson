@@ -15,6 +15,7 @@ from .widget_parameters import (
 )
 from .data_players import DataPlayer, RTDataPlayer
 from .live_features import LiveFeatureDisplay
+from .video_players import VideoPlayer, RTVideoPlayer
 
 
 __all__ = [
@@ -25,7 +26,8 @@ __all__ = [
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
     'ToggleButtonParameter', 'CheckboxParameter',
     'DataPlayer', 'RTDataPlayer',
-    'LiveFeatureDisplay'
+    'LiveFeatureDisplay',
+    'VideoPlayer', 'RTVideoPlayer',
 ]
 
 
