@@ -62,8 +62,16 @@ class VideoPlayerServer:
         self._img = pg.ImageItem()
         self._img.setAutoDownsample(True)
 
+        self._img.setImage(self._video[0].swapaxes(0, 1))
+
         self._img_gv = pg.GraphicsView()
-        self._img_gv.addItem(self._img)
+        self._view_box = pg.ViewBox()
+        self._view_box.setAspectLocked()
+        self._view_box.invertY(True)
+
+        self._img_gv.setCentralItem(self._view_box)
+
+        self._view_box.addItem(self._img)
 
         self._win.setCentralWidget(self._img_gv)
 
@@ -179,7 +187,13 @@ class RTVideoPlayerServer:
         self._img.setAutoDownsample(True)
 
         self._img_gv = pg.GraphicsView()
-        self._img_gv.addItem(self._img)
+        self._view_box = pg.ViewBox()
+        self._view_box.setAspectLocked()
+        self._view_box.invertY(True)
+
+        self._img_gv.setCentralItem(self._view_box)
+
+        self._view_box.addItem(self._img)
 
         self._win.setCentralWidget(self._img_gv)
 
