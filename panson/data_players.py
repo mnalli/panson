@@ -368,6 +368,11 @@ class DataPlayer:
         pause = widgets.Button(icon='pause')
         play = widgets.Button(icon='play')
 
+        rate = widgets.FloatText(
+            value=self.rate,
+            description='Rate:',
+        )
+
         record = widgets.ToggleButton(
             value=False,
             description='Record',
@@ -397,6 +402,7 @@ class DataPlayer:
         widget = widgets.VBox([
             slider,
             controls,
+            rate,
             record_box,
             clear_out,
             out
@@ -443,6 +449,21 @@ class DataPlayer:
 
         pause.on_click(on_pause)
         play.on_click(on_play)
+
+        def on_rate(value):
+            with out:
+                self.rate = value['new']
+
+        rate.observe(on_rate, 'value')
+
+        def toggle_record(value):
+            with out:
+                if value['new']:
+                    self.record_start(record_out.value)
+                else:
+                    self.record_stop()
+
+        record.observe(toggle_record, 'value')
 
         def on_clear(button):
             out.clear_output()
