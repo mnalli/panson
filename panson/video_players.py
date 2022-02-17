@@ -307,7 +307,6 @@ class RTVideoPlayerServer:
         self.stop_recording()
         # cancel recording - will let thread run come to an end
         self._recording = False
-        self._recorder_thread.join()
         self._conn.send(0)
 
     def quit(self):
