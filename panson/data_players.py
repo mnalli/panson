@@ -9,6 +9,7 @@ from threading import Thread
 
 from .sonification import Sonification, GroupSonification
 from .live_features import LiveFeatureDisplay
+from .video_players import VideoPlayer
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
@@ -28,7 +29,8 @@ class DataPlayer:
     def __init__(
             self,
             sonification: Union[Sonification, GroupSonification] = None,
-            feature_display: LiveFeatureDisplay = None
+            feature_display: LiveFeatureDisplay = None,
+            video_player: VideoPlayer = None
     ):
         # worker thread
         self._worker = None
@@ -48,6 +50,7 @@ class DataPlayer:
 
         self._widget = self._get_ipywidget()
         self._feature_display = feature_display
+        self._video_player = video_player
 
     @property
     def sonification(self) -> Union[Sonification, GroupSonification]:
@@ -167,6 +170,10 @@ class DataPlayer:
             if self._feature_display:
                 self._feature_display.feed(row)
 
+            if self._video_player:
+                # seek pointer
+                self._video_player.seek(ptr)
+
             # TODO: not thread safe
             # update pointer to current row
             self._ptr = ptr
@@ -238,6 +245,9 @@ class DataPlayer:
                 f"Invalid index {idx}. "
                 f"Must be in range [0, {self._df.index[-1]}]"
             )
+
+        if self._video_player:
+            self._video_player.seek(idx)
 
         if self._running:
             # restart thread with updated position
