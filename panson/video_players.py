@@ -139,6 +139,10 @@ class VideoPlayer:
         self._conn.send(('quit',))
         self._conn.close()
 
+    def __del__(self):
+        if not self._conn.closed:
+            self.quit()
+
 
 class RTVideoPlayerServer:
 
@@ -362,3 +366,7 @@ class RTVideoPlayer:
     def quit(self):
         self._conn.send(('quit',))
         self._conn.close()
+
+    def __del__(self):
+        if not self._conn.closed:
+            self.quit()
