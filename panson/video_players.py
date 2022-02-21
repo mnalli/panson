@@ -146,7 +146,7 @@ class RTVideoPlayerServer:
         self,
         conn: mp.connection.Connection,
         device: int = 0,
-        auto_enum_files: bool = True,
+        enumerate_records: bool = True,
         on_top: bool = True
     ):
         # pipe end
@@ -161,21 +161,22 @@ class RTVideoPlayerServer:
 
         # playback running
         self._running = False
-        self._recording = False
 
         # file name
-        self._out_file_prefix = 'test'
+        self._out_file_prefix = 'record'
         self._out_file_suffix = 'avi'
 
-        #
         self._device_id = device
 
-        #
+        # Recorder
+        self._recording = False
+        # recorder's start time
         self._t0 = None
-
-        # count number of times record is called
+        self._enumerate_records = enumerate_records
         self._run_counter = 0
-        self.auto_enumerate_files = auto_enum_files
+        self._frame_counter = None
+        self._frametimes = None
+        self._fname = None
 
         # GUI
         self.app = QtWidgets.QApplication([])
@@ -206,6 +207,12 @@ class RTVideoPlayerServer:
 
         # capture device
         self._capture = cv2.VideoCapture(self._device_id)
+
+        # try to set parameters specified by the user
+        # self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        # self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        # self._capture.set(cv2.CAP_PROP_FPS, fps)
+
         # get actual parameters
         self._width = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         self._height = int(self._capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -213,6 +220,7 @@ class RTVideoPlayerServer:
 
         print(f"{self._width} x {self._height} @ {self._fps} fps")
 
+        # TODO: relative window position
         self._win.setGeometry(1000, 0, self._width, self._height)
         self._win.show()
 
@@ -225,19 +233,19 @@ class RTVideoPlayerServer:
         self._recorder_thread.start()
 
     def start_recording(self):
-        if self.auto_enumerate_files:
-            self.fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
+        if self._enumerate_records:
+            self._fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
             self._run_counter += 1
         else:
-            self.fname = self._out_file_prefix + "." + self._out_file_suffix
+            self._fname = self._out_file_prefix + "." + self._out_file_suffix
 
         self._writer = cv2.VideoWriter(
-            self.fname, self._fourcc, self._fps, (self._width, self._height)
+            self._fname, self._fourcc, self._fps, (self._width, self._height)
         )
 
-        self.frame_counter = 0
+        self._frame_counter = 0
         # to hold [cnt, timestamp]
-        self.frametimes = []
+        self._frametimes = []
         self._t0 = time.time()
 
     def stop_recording(self):
@@ -245,8 +253,8 @@ class RTVideoPlayerServer:
         print("Release writer")
 
         np.savetxt(
-            f"{self.fname}.csv",
-            np.array(self.frametimes),
+            f"{self._fname}.csv",
+            np.array(self._frametimes),
             delimiter=',',
             fmt='%g',
             header="# frame_number, timestamp[s]"
@@ -260,6 +268,7 @@ class RTVideoPlayerServer:
     def _recorder(self):
 
         while self._running:
+            t = time.time()
             grabbed, frame = self._capture.read()
 
             assert grabbed
@@ -267,10 +276,8 @@ class RTVideoPlayerServer:
             self.c.updateImg.emit(frame[:, :, (2, 1, 0)].swapaxes(0, 1))
 
             if self._recording:
-                t = time.time()
-
-                self.frametimes.append((self.frame_counter, t - self._t0))
-                self.frame_counter += 1
+                self._frametimes.append((self._frame_counter, t - self._t0))
+                self._frame_counter += 1
 
                 self._writer.write(frame)
 
@@ -293,9 +300,9 @@ class RTVideoPlayerServer:
         self._out_file_prefix, self._out_file_suffix = name.split('.')
         self._conn.send(0)
 
-    def autoenum(self, amount: bool):
+    def autoenum(self, val: bool):
         """Enable or disable auto enumeration of files."""
-        self.auto_enumerate_files = amount
+        self._enumerate_records = val
         self._conn.send(0)
 
     def record(self):
