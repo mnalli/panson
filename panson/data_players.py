@@ -9,7 +9,7 @@ from threading import Thread
 
 from .sonification import Sonification, GroupSonification
 from .live_features import LiveFeatureDisplay
-from .video_players import VideoPlayer
+from .video_players import VideoPlayer, RTVideoPlayer
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
@@ -482,7 +482,8 @@ class RTDataPlayer:
             self,
             datagen_function: Callable[[], Generator],
             sonification: Union[Sonification, GroupSonification] = None,
-            feature_display: LiveFeatureDisplay = None
+            feature_display: LiveFeatureDisplay = None,
+            video_player: RTVideoPlayer = None
     ):
         self._datagen = datagen_function
 
@@ -506,6 +507,7 @@ class RTDataPlayer:
         self._widget = self._get_ipywidget()
 
         self._feature_display = feature_display
+        self._video_player = video_player
 
     @property
     def sonification(self) -> Union[Sonification, GroupSonification]:
@@ -604,6 +606,9 @@ class RTDataPlayer:
         # send start bundle to the server
         self._recorder.start()
 
+        if self._video_player:
+            self._video_player.record()
+
     def record_stop(self) -> None:
         if self._recorder is None:
             raise ValueError("Start the recorder first!")
@@ -612,16 +617,25 @@ class RTDataPlayer:
         self._recorder.stop()
         self._recorder = None
 
+        if self._video_player:
+            self._video_player.stop()
+
     def log_start(self) -> None:
         if self._logs is not None:
             raise ValueError("Already logging.")
         self._logs = pd.DataFrame()
+
+        if self._video_player:
+            self._video_player.record()
 
     def log_stop(self, path=None) -> pd.DataFrame:
         if self._logs is None:
             raise ValueError("Start logging first!")
         df = self._logs
         self._logs = None
+
+        if self._video_player:
+            self._video_player.stop()
 
         if path is not None:
             df.to_csv(path)
