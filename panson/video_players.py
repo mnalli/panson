@@ -150,6 +150,9 @@ class RTVideoPlayerServer:
         self,
         conn: mp.connection.Connection,
         device: int = 0,
+        width: int = None,
+        height: int = None,
+        fps: int = None,
         enumerate_records: bool = True,
         on_top: bool = True
     ):
@@ -213,9 +216,12 @@ class RTVideoPlayerServer:
         self._capture = cv2.VideoCapture(self._device_id)
 
         # try to set parameters specified by the user
-        # self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        # self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        # self._capture.set(cv2.CAP_PROP_FPS, fps)
+        if width:
+            self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        if height:
+            self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        if fps:
+            self._capture.set(cv2.CAP_PROP_FPS, fps)
 
         # get actual parameters
         self._width = int(self._capture.get(cv2.CAP_PROP_FRAME_WIDTH))
