@@ -19,6 +19,8 @@ import numpy as np
 
 import pims
 
+import traceback
+
 
 class Communicate(QObject):
 
@@ -122,7 +124,12 @@ class VideoPlayerServer:
     def _receiver(self):
         while self._running:
             cmd = self._conn.recv()
-            self.__getattribute__(cmd[0])(*cmd[1:])
+
+            try:
+                self.__getattribute__(cmd[0])(*cmd[1:])
+            except:
+                # capture and print all exception not to make the server crash
+                traceback.print_exc()
 
         # end main loop
         self.app.exit()
@@ -345,7 +352,12 @@ class RTVideoPlayerServer:
     def _receiver(self):
         while self._running:
             cmd = self._conn.recv()
-            self.__getattribute__(cmd[0])(*cmd[1:])
+
+            try:
+                self.__getattribute__(cmd[0])(*cmd[1:])
+            except:
+                # capture and print all exception not to make the server crash
+                traceback.print_exc()
 
     def _recorder(self):
 
