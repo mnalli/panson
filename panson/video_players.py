@@ -28,10 +28,10 @@ class Communicate(QObject):
 class VideoPlayerServer:
 
     def __init__(
-        self,
-        file_path: str,
-        conn: mp.connection.Connection,
-        on_top: bool = True
+            self,
+            conn: mp.connection.Connection,
+            file_path: str,
+            on_top: bool = True
     ):
         self._file_path = file_path
         # TODO: Video is the correct class to use?
@@ -109,21 +109,24 @@ class VideoPlayerServer:
 
 class VideoPlayer:
 
-    def __init__(self, file_path: str, **kwargs):
+    def __init__(
+            self,
+            file_path: str,
+            on_top: bool = True
+    ):
 
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(file_path, child_conn,),
-            kwargs=kwargs,
+            args=(child_conn, file_path, on_top),
         )
 
         # start server process
         p.start()
 
     @staticmethod
-    def _server_main(file_path, conn, **kwargs):
-        vp = VideoPlayerServer(file_path, conn, **kwargs)
+    def _server_main(conn, file_path, **kwargs):
+        vp = VideoPlayerServer(conn, file_path, **kwargs)
         # start threads
         vp.start()
         # start main loop
@@ -147,14 +150,14 @@ class VideoPlayer:
 class RTVideoPlayerServer:
 
     def __init__(
-        self,
-        conn: mp.connection.Connection,
-        device: int = 0,
-        width: int = None,
-        height: int = None,
-        fps: int = None,
-        enumerate_records: bool = True,
-        on_top: bool = True
+            self,
+            conn: mp.connection.Connection,
+            device: int = 0,
+            width: int = None,
+            height: int = None,
+            fps: int = None,
+            enumerate_records: bool = True,
+            on_top: bool = True
     ):
         # pipe end
         self._conn = conn
@@ -334,13 +337,20 @@ class RTVideoPlayerServer:
 
 class RTVideoPlayer:
 
-    def __init__(self, **kwargs):
+    def __init__(
+            self,
+            device: int = 0,
+            width: int = None,
+            height: int = None,
+            fps: int = None,
+            enumerate_records: bool = True,
+            on_top: bool = True
+    ):
 
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn,),
-            kwargs=kwargs,
+            args=(child_conn, device, width, height, fps, enumerate_records, on_top),
         )
 
         # start server process
