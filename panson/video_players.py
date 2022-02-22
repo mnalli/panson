@@ -3,9 +3,7 @@ import time
 
 from PyQt5 import QtWidgets, QtCore
 
-from PyQt5.QtCore import (
-    QCoreApplication, QObject, QRunnable, QThread, QThreadPool, pyqtSignal
-)
+from PyQt5.QtCore import QObject, pyqtSignal
 
 import pyqtgraph as pg
 
@@ -137,17 +135,21 @@ class VideoPlayerServer:
     # COMMANDS
 
     def seek(self, idx: int):
+
+        # print('s', idx)
+
+        if not (0 <= idx < len(self._video)):
+            raise ValueError(
+                f"idx ({idx}) must be between 0 and {len(self._video)}"
+            )
+
         if idx == self._curr_frame_idx:
             return
-
-        # TODO: check boundaries
 
         frame = self._video[idx]
         self.c.updateImg.emit(frame.swapaxes(0, 1))
 
         self._curr_frame_idx = idx
-
-        self._conn.send(0)
 
     def seek_time(self, t: float):
         if self._frame_times is not None:
@@ -174,7 +176,6 @@ class VideoPlayerServer:
 
     def quit(self):
         self._running = False
-        self._conn.send(0)
         self._conn.close()
 
 
@@ -210,9 +211,6 @@ class VideoPlayer:
 
     def seek_time(self, t: float):
         self._conn.send(('seek_time', t))
-
-    def get_reply(self):
-        return self._conn.recv()
 
     def quit(self):
         self._conn.send(('quit',))
@@ -395,27 +393,22 @@ class RTVideoPlayerServer:
         Set also suffix (and thus video file containter format).
         """
         self._out_file_prefix, self._out_file_suffix = name.split('.')
-        self._conn.send(0)
 
     def autoenum(self, val: bool):
         """Enable or disable auto enumeration of files."""
         self._enumerate_records = val
-        self._conn.send(0)
 
     def record(self):
         self._start_recording()
         self._recording = True
-        self._conn.send(self._t0)
 
     def stop(self):
         self._stop_recording()
         # cancel recording - will let thread run come to an end
         self._recording = False
-        self._conn.send(0)
 
     def quit(self):
         self._running = False
-        self._conn.send(0)
         self._conn.close()
 
 
@@ -447,9 +440,6 @@ class RTVideoPlayer:
         vp.start()
         # start main loop
         sys.exit(vp.app.exec())
-
-    def get_reply(self):
-        return self._conn.recv()
 
     def set_auto_enum_files(self, val: bool):
         self._conn.send(('autoenum', {val}))

@@ -171,8 +171,12 @@ class DataPlayer:
                 self._feature_display.feed(row)
 
             if self._video_player:
-                # seek pointer
-                self._video_player.seek(ptr)
+                if self._fps:
+                    t = ptr / self._fps
+                else:
+                    t = row[self._time_key]
+
+                self._video_player.seek_time(t)
 
             # TODO: not thread safe
             # update pointer to current row
@@ -247,7 +251,13 @@ class DataPlayer:
             )
 
         if self._video_player:
-            self._video_player.seek(idx)
+            if self._fps:
+                t = idx / self._fps
+            else:
+                row = self._df.iloc[idx]
+                t = row[self._time_key]
+
+            self._video_player.seek_time(t)
 
         if self._running:
             # restart thread with updated position
