@@ -362,10 +362,13 @@ class RTVideoPlayerServer:
     def _recorder(self):
 
         while self._running:
-            t = time.time()
             grabbed, frame = self._capture.read()
+            t = time.time()
 
-            assert grabbed
+            if not grabbed:
+                print("Can't receive frame (stream end?). Exiting ...")
+                self._running = False
+                break
 
             self.c.updateImg.emit(frame[:, :, (2, 1, 0)].swapaxes(0, 1))
 
