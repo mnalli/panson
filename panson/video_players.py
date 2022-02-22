@@ -31,20 +31,50 @@ class VideoPlayerServer:
             self,
             conn: mp.connection.Connection,
             file_path: str,
+            frame_times_path: str = None,
+            fps=None,
             on_top: bool = True
     ):
+        # pipe end
+        self._conn = conn
+
         self._file_path = file_path
         # TODO: Video is the correct class to use?
         self._video = pims.Video(file_path)
 
-        # pipe end
-        self._conn = conn
+        if frame_times_path is None:
+            print('No frame times specified')
+
+            if fps is None:
+                print('No FPS specified')
+                self._fps = None
+
+                frame_times_path = file_path + '.csv'
+                print(f'Loading default frame times from {frame_times_path}')
+
+                try:
+                    self._frame_times = np.loadtxt(frame_times_path, delimiter=',')
+                    print('Frame times loaded.')
+                except OSError:
+                    print('No default frame times found: seek_time will not work.')
+                    self._frame_times = None
+
+            else:
+                print(f'Using static fps {fps}')
+                self._fps = fps
+                self._frame_times = None
+        else:
+            print(f'Loading frame times from {frame_times_path}')
+            self._frame_times = np.loadtxt(frame_times_path)
+            if fps:
+                print(f'Ignoring specified fps {fps}')
+                self._fps = None
 
         # threads
         self._receiver_thread = threading.Thread(target=self._receiver)
 
         self.c = Communicate()
-        self.c.updateImg.connect(self.update_img)
+        self.c.updateImg.connect(self._update_img)
 
         # playback running
         self._running = False
@@ -62,8 +92,6 @@ class VideoPlayerServer:
         self._img = pg.ImageItem()
         self._img.setAutoDownsample(True)
 
-        self._img.setImage(self._video[0].swapaxes(0, 1))
-
         self._img_gv = pg.GraphicsView()
         self._view_box = pg.ViewBox()
         self._view_box.setAspectLocked()
@@ -78,9 +106,13 @@ class VideoPlayerServer:
         # print(f"{self._width} x {self._height} @ {self._fps} fps")
         # self._win.setGeometry(1000, 0, self._width, self._height)
 
+        # set first frame
+        self._curr_frame_idx = 0
+        self._img.setImage(self._video[self._curr_frame_idx].swapaxes(0, 1))
+
         self._win.show()
 
-    def update_img(self, img):
+    def _update_img(self, img):
         self._img.setImage(img)
 
     def start(self):
@@ -98,8 +130,40 @@ class VideoPlayerServer:
     # COMMANDS
 
     def seek(self, idx: int):
+        if idx == self._curr_frame_idx:
+            return
+
+        # TODO: check boundaries
+
         frame = self._video[idx]
         self.c.updateImg.emit(frame.swapaxes(0, 1))
+
+        self._curr_frame_idx = idx
+
+        self._conn.send(0)
+
+    def seek_time(self, t: float):
+        if self._frame_times is not None:
+            max_time = self._frame_times[-1, 1]
+            if t > max_time:
+                raise ValueError(
+                    f"t == {t} is greater than maximum time {max_time}"
+                )
+            # find timestamp with binary search
+            idx = np.searchsorted(self._frame_times[:, 1], t)
+        elif self._fps is not None:
+            max_time = len(self._video) / self._fps
+            if t > max_time:
+                raise ValueError(
+                    f"t == {t} is greater than maximum time {max_time}"
+                )
+            idx = int(t * self._fps)
+        else:
+            raise ValueError(
+                "Cannot use seek_time when frame times and fps are not specified."
+            )
+
+        self.seek(idx)
 
     def quit(self):
         self._running = False
@@ -112,31 +176,36 @@ class VideoPlayer:
     def __init__(
             self,
             file_path: str,
+            frame_times_path: str = None,
+            fps=None,
             on_top: bool = True
     ):
 
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn, file_path, on_top),
+            args=(child_conn, file_path, frame_times_path, fps, on_top),
         )
 
         # start server process
         p.start()
 
     @staticmethod
-    def _server_main(conn, file_path, **kwargs):
-        vp = VideoPlayerServer(conn, file_path, **kwargs)
+    def _server_main(*args):
+        vp = VideoPlayerServer(*args)
         # start threads
         vp.start()
         # start main loop
         sys.exit(vp.app.exec())
 
-    def get_reply(self):
-        return self._conn.recv()
-
     def seek(self, idx: int):
         self._conn.send(('seek', idx))
+
+    def seek_time(self, t: float):
+        self._conn.send(('seek_time', t))
+
+    def get_reply(self):
+        return self._conn.recv()
 
     def quit(self):
         self._conn.send(('quit',))
@@ -167,7 +236,7 @@ class RTVideoPlayerServer:
         self._recorder_thread = threading.Thread(target=self._recorder)
 
         self.c = Communicate()
-        self.c.updateImg.connect(self.update_img)
+        self.c.updateImg.connect(self._update_img)
 
         # playback running
         self._running = False
@@ -237,7 +306,7 @@ class RTVideoPlayerServer:
         self._win.setGeometry(1000, 0, self._width, self._height)
         self._win.show()
 
-    def update_img(self, img):
+    def _update_img(self, img):
         self._img.setImage(img)
 
     def start(self):
@@ -257,7 +326,7 @@ class RTVideoPlayerServer:
         )
 
         self._frame_counter = 0
-        # to hold [cnt, timestamp]
+        # to hold [counter_val, timestamp]
         self._frametimes = []
         self._t0 = time.time()
 
@@ -270,7 +339,7 @@ class RTVideoPlayerServer:
             np.array(self._frametimes),
             delimiter=',',
             fmt='%g',
-            header="# frame_number, timestamp[s]"
+            header="frame_number, timestamp"
         )
 
     def _receiver(self):
@@ -357,8 +426,8 @@ class RTVideoPlayer:
         p.start()
 
     @staticmethod
-    def _server_main(conn, **kwargs):
-        vp = RTVideoPlayerServer(conn, **kwargs)
+    def _server_main(*args):
+        vp = RTVideoPlayerServer(*args)
         # start threads
         vp.start()
         # start main loop
