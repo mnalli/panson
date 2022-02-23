@@ -2,6 +2,7 @@ import sc3nb as scn
 from sc3nb import Score, Bundler
 from sc3nb.sc_objects.server import ServerOptions
 
+import numpy as np
 import pandas as pd
 
 from time import time, sleep
@@ -23,6 +24,8 @@ import copy
 import logging
 _LOGGER = logging.getLogger(__name__)
 # TODO: fix logging problems
+
+# TODO: widgets are not updated when the data player state is changed programmatically
 
 
 class DataPlayer:
@@ -221,26 +224,25 @@ class DataPlayer:
                 f"Cannot be {type(target)}."
             )
 
-    def _seek_time(self, time: float) -> None:
+    def _seek_time(self, t: float) -> None:
         if self._fps:
             max_time = self._df.index[-1] * 1 / self._fps
-            if not (0 <= time <= max_time):
+            if not (0 <= t <= max_time):
                 raise ValueError(
-                    f"Cannot set time to {time}. "
+                    f"Cannot set time to {t}. "
                     f"Must be between 0 and {max_time}."
                 )
-            frame_idx = int(time * self._fps)
+            frame_idx = int(t * self._fps)
         else:
             max_time = self._df[self._time_key].iloc[-1]
-            if not (0 <= time <= max_time):
+            if not (0 <= t <= max_time):
                 raise ValueError(
-                    f"Cannot set time to {time}. "
+                    f"Cannot set time to {t}. "
                     f"Must be between 0 and {max_time}."
                 )
             timestamps = self._df[self._time_key]
-            # pick index nearest to the timestamp
-            # TODO: accelerate forward searching in monotonous functions
-            frame_idx = ((timestamps - time).abs()).argmin()
+            # seek with binary search
+            frame_idx = np.searchsorted(timestamps, t)
 
         self._seek_idx(frame_idx)
 
