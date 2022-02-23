@@ -1,3 +1,13 @@
+"""This module provide a set of generator functions.
+
+This functions can be used to specify to a RTDataPlayer how to obtain data in
+different contexts.
+
+As these functions will be called by the data player without arguments,
+functools.partial can be used to specify their arguments.
+
+Dummy functions are provided for testing purposes.
+"""
 
 import pandas as pd
 import csv
