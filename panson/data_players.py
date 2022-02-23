@@ -571,6 +571,11 @@ class RTDataPlayer:
         # send stop bundle
         self._son.s.bundler().add(self._son.stop()).send()
 
+        if self._logs is not None:
+            # save the data if quitting while logging
+            # TODO: refactor log stop function and widgets
+            self.log_stop('log.csv')
+
         # this is relevant when the for loop ends naturally
         self._running = False
         _LOGGER.info('listener thread exiting')
