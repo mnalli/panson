@@ -652,7 +652,7 @@ class RTDataPlayer:
             self._video_player.stop()
 
         if path is not None:
-            df.to_csv(path)
+            df.to_csv(path, index=False)
 
         return df
 
