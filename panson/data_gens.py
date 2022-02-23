@@ -26,32 +26,45 @@ def csv_fifo_gen(fifo_path: str):
             yield series
 
 
-def dummy_sin_gen(fps=30, amp=1):
+def dummy_sin_gen(fps=30, amp=1, timestamps=True):
     """Yields sinusoidal values varying with time."""
 
-    header = ['timestamp', 'value']
+    header = ['value']
+    if timestamps:
+        # head insert
+        header.insert(0, 'timestamp')
+
     t0 = time.time()
 
     for i in count():
         t = time.time() - t0
         value = math.sin(t) * amp
+        data = [value]
+        if timestamps:
+            data.insert(0, t)
         # TODO: remove explicit name
-        yield pd.Series([t, value], header, name=i)
+        yield pd.Series(data, header, name=i)
         # TODO: improve timing
         time.sleep(1 / fps)
 
 
-def dummy_sin_cos_gen(fps=30, sin_amp=1, cos_amp=1):
+def dummy_sin_cos_gen(fps=30, sin_amp=1, cos_amp=1, timestamps=True):
     """Yields oscillatory values varying with time."""
 
-    header = ['timestamp', 'sin', 'cos']
+    header = ['sin', 'cos']
+    if timestamps:
+        # head insert
+        header.insert(0, 'timestamp')
     t0 = time.time()
 
     for i in count():
         t = time.time() - t0
         sin = math.sin(t) * sin_amp
         cos = math.cos(t) * cos_amp
+        data = [sin, cos]
+        if timestamps:
+            data.insert(0, t)
         # TODO: remove explicit name
-        yield pd.Series([t, sin, cos], header, name=i)
+        yield pd.Series(data, header, name=i)
         # TODO: improve timing
         time.sleep(1 / fps)
