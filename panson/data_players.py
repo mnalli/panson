@@ -22,6 +22,7 @@ import copy
 
 import logging
 _LOGGER = logging.getLogger(__name__)
+# TODO: fix logging problems
 
 
 class DataPlayer:
@@ -399,6 +400,7 @@ class DataPlayer:
             description='Clear output'
         )
 
+        # TODO: fix output display problem
         out = widgets.Output(layout={'border': '1px solid black'})
 
         controls = widgets.HBox([

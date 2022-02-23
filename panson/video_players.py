@@ -19,10 +19,15 @@ import pims
 
 import traceback
 
+# TODO: refactor video players inheriting from QMainWindow
+# TODO: evaluate weather to use mp.Manager to implement the video players
+
 
 class Communicate(QObject):
 
     updateImg = pyqtSignal(np.ndarray)
+
+# TODO: implement playback logic in VideoPlayer
 
 
 class VideoPlayerServer:
