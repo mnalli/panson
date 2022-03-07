@@ -18,6 +18,7 @@ import ipywidgets as widgets
 from IPython.display import display
 
 import subprocess
+import os
 
 import copy
 
@@ -510,8 +511,9 @@ class RTDataPlayer:
 
         self._recorder = None
 
-        # logs dataframe
-        self._logs = None
+        self._logging = False
+        self._logfile = None
+        self._first_line = False
 
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
@@ -560,21 +562,21 @@ class RTDataPlayer:
 
             self._son.s.bundler().add(self._son.process(row)).send()
 
-            # if logging is enabled, log the data
-            if self._logs is not None:
-                # TODO: handle out of memory error
-                self._logs = self._logs.append(row)
+            if self._logging:
+                row_df = row.to_frame().transpose()
+                if self._first_line:
+                    # write header and row
+                    row_df.to_csv(self._logfile, mode='w', index=False)
+                    self._first_line = False
+                else:
+                    # append row to file
+                    row_df.to_csv(self._logfile, mode='a', header=False, index=False)
 
             if self._feature_display:
                 self._feature_display.feed(row)
 
         # send stop bundle
         self._son.s.bundler().add(self._son.stop()).send()
-
-        if self._logs is not None:
-            # save the data if quitting while logging
-            # TODO: refactor log stop function and widgets
-            self.log_stop('log.csv')
 
         # this is relevant when the for loop ends naturally
         self._running = False
@@ -639,27 +641,31 @@ class RTDataPlayer:
         if self._video_player:
             self._video_player.stop()
 
-    def log_start(self) -> None:
-        if self._logs is not None:
+    def log_start(self, path='log.csv', overwrite=False) -> None:
+        if self._logging:
             raise ValueError("Already logging.")
-        self._logs = pd.DataFrame()
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
+
+        self._logging = True
+        self._logfile = path
+        self._first_line = True
 
         if self._video_player:
             self._video_player.record()
 
-    def log_stop(self, path=None) -> pd.DataFrame:
-        if self._logs is None:
+    def log_stop(self) -> None:
+        if not self._logging:
             raise ValueError("Start logging first!")
-        df = self._logs
-        self._logs = None
+
+        self._logging = False
+        self._logfile = None
 
         if self._video_player:
             self._video_player.stop()
-
-        if path is not None:
-            df.to_csv(path, index=False)
-
-        return df
 
     def _get_ipywidget(self):
         listen = widgets.Button(icon='play')
@@ -689,8 +695,13 @@ class RTDataPlayer:
             value='log.csv',
             description='Output path:',
         )
+        log_overwrite = widgets.Checkbox(
+            value=False,
+            description='Overwrite'
+        )
+
         # TODO: overwrite check button
-        log_box = widgets.HBox([log, log_out])
+        log_box = widgets.HBox([log, log_out, log_overwrite])
 
         clear_out = widgets.Button(
             description='Clear output'
@@ -721,9 +732,9 @@ class RTDataPlayer:
         def toggle_log(value):
             with out:
                 if value['new']:
-                    self.log_start()
+                    self.log_start(log_out.value, overwrite=log_overwrite.value)
                 else:
-                    self.log_stop(log_out.value)
+                    self.log_stop()
 
         log.observe(toggle_log, 'value')
 
