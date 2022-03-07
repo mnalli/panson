@@ -272,12 +272,17 @@ class DataPlayer:
             self._ptr = idx
 
     # TODO: the code in RTDataPlayer is duplicated...
-    def record_start(self, path: str = 'record.wav') -> None:
+    def record_start(self, path: str = 'record.wav', overwrite=False) -> None:
         # TODO: this sends the recorder definition every time.
         # can we do better?
 
         if self._recorder is not None:
             raise ValueError("Recorder already working.")
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
 
         self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
@@ -396,8 +401,12 @@ class DataPlayer:
             value='record.wav',
             description='Output path:',
         )
-        # TODO: overwrite check button
-        record_box = widgets.HBox([record, record_out])
+        record_overwrite = widgets.Checkbox(
+            value=False,
+            description='Overwrite'
+        )
+
+        record_box = widgets.HBox([record, record_out, record_overwrite])
 
         clear_out = widgets.Button(
             description='Clear output'
@@ -474,7 +483,7 @@ class DataPlayer:
         def toggle_record(value):
             with out:
                 if value['new']:
-                    self.record_start(record_out.value)
+                    self.record_start(record_out.value, overwrite=record_overwrite.value)
                 else:
                     self.record_stop()
 
@@ -616,12 +625,17 @@ class RTDataPlayer:
             else:
                 hook()
 
-    def record_start(self, path='record.wav') -> None:
+    def record_start(self, path='record.wav', overwrite=False) -> None:
         # TODO: this sends the recorder definition every time.
         # can we do better?
 
         if self._recorder is not None:
             raise ValueError("Recorder already working.")
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
 
         self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
@@ -683,8 +697,12 @@ class RTDataPlayer:
             value='record.wav',
             description='Output path:',
         )
-        # TODO: overwrite check button
-        record_box = widgets.HBox([record, record_out])
+        record_overwrite = widgets.Checkbox(
+            value=False,
+            description='Overwrite'
+        )
+
+        record_box = widgets.HBox([record, record_out, record_overwrite])
 
         log = widgets.ToggleButton(
             value=False,
@@ -700,7 +718,6 @@ class RTDataPlayer:
             description='Overwrite'
         )
 
-        # TODO: overwrite check button
         log_box = widgets.HBox([log, log_out, log_overwrite])
 
         clear_out = widgets.Button(
@@ -723,7 +740,7 @@ class RTDataPlayer:
         def toggle_record(value):
             with out:
                 if value['new']:
-                    self.record_start(record_out.value)
+                    self.record_start(record_out.value, overwrite=record_overwrite.value)
                 else:
                     self.record_stop()
 
