@@ -860,6 +860,9 @@ class RTDataPlayerMulti:
         # send start bundle
         self._son.s.bundler().add(self._son.start()).send()
 
+        i = 1
+        t0 = time()
+
         while self._running:
             # there's no need to copy the data, as series elements are not modified
             # TODO: use verify_integrity=True only the first time?
@@ -883,8 +886,15 @@ class RTDataPlayerMulti:
             if self._feature_display:
                 self._feature_display.feed(row)
 
-            # TODO: use precise timing
-            sleep(1/self._fps)
+            target_time = t0 + i / self._fps
+            i += 1
+
+            waiting_time = target_time - time()
+
+            if waiting_time > 0:
+                sleep(waiting_time)
+            else:
+                _LOGGER.warning(f'sonification thread is {-waiting_time}s late')
 
         # send stop bundle
         self._son.s.bundler().add(self._son.stop()).send()
