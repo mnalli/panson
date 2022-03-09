@@ -861,12 +861,16 @@ class RTDataPlayerMulti:
         self._son.s.bundler().add(self._son.start()).send()
 
         while self._running:
+            # there's no need to copy the data, as series elements are not modified
             # TODO: use verify_integrity=True only the first time?
             row = pd.concat(self._stream_slots, verify_integrity=True)
 
             self._son.s.bundler().add(self._son.process(row)).send()
 
             if self._logging:
+                # TODO: decide how to handle consumer_timestamp
+                row['consumer_timestamp'] = time()
+                # transform into dataframe to log horizontally
                 row_df = row.to_frame().transpose()
                 if self._first_line:
                     # write header and row
