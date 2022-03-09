@@ -26,7 +26,6 @@ import copy
 
 import logging
 _LOGGER = logging.getLogger(__name__)
-# TODO: fix logging problems
 
 # TODO: widgets are not updated when the data player state is changed programmatically
 
@@ -138,7 +137,7 @@ class DataPlayer:
     def _play(self):
         assert self.rate != 0, "rate == 0"
 
-        _LOGGER.info('player thread starting')
+        _LOGGER.info('player thread started')
 
         assert not self._running, "called while running"
         self._running = True
@@ -207,7 +206,7 @@ class DataPlayer:
 
         # this is relevant when the for loop ends naturally
         self._running = False
-        _LOGGER.info('player thread exiting')
+        _LOGGER.info('player thread ended')
 
     def pause(self) -> None:
         if not self._running:
@@ -554,13 +553,13 @@ class RTDataPlayer:
         _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
         self.exec_hooks(self._listen_hooks)
 
+        self._running = True
+
         self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('listener thread starting')
-
-        self._running = True
+        _LOGGER.info('listener thread started')
 
         # send start bundle
         self._son.s.bundler().add(self._son.start()).send()
@@ -591,7 +590,7 @@ class RTDataPlayer:
 
         # this is relevant when the for loop ends naturally
         self._running = False
-        _LOGGER.info('listener thread exiting')
+        _LOGGER.info('listener thread ended')
 
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayer':
         self._listen_hooks.append((hook, args, kwargs))
@@ -852,7 +851,7 @@ class RTDataPlayerMulti:
         self._main_worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('listener thread starting')
+        _LOGGER.info('sonification thread started')
 
         # wait for every stream to start producing data
         for event in self._first_sample_events:
@@ -888,10 +887,10 @@ class RTDataPlayerMulti:
 
         # this is relevant when the for loop ends naturally
         self._running = False
-        _LOGGER.info('listener thread exiting')
+        _LOGGER.info('sonification thread ended')
 
     def _stream(self, idx: int):
-        print(f'stream {idx} open')
+        _LOGGER.info(f'stream {idx} opened')
 
         data_generator = self._streams[idx]()
         # get first data sample
@@ -904,6 +903,8 @@ class RTDataPlayerMulti:
                 break
             self._stream_slots[idx] = row
             # TODO: add logging
+
+        _LOGGER.info(f'stream {idx} closed')
 
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayerMulti':
         self._listen_hooks.append((hook, args, kwargs))
