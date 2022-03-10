@@ -834,12 +834,12 @@ class RTDataPlayerMulti:
         _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
         self.exec_hooks(self._listen_hooks)
 
-        t0 = time()
+        t_start = time()
 
-        self._main_worker = Thread(name='listener', target=self._listen, args=(t0,))
+        self._main_worker = Thread(name='listener', target=self._listen, args=(t_start,))
         # allocate one thread for each stream
         self._stream_workers = [
-            Thread(name=f'stream_{i}', target=self._stream, args=(i, t0)) for i in range(len(self._streams))
+            Thread(name=f'stream_{i}', target=self._stream, args=(i, t_start)) for i in range(len(self._streams))
         ]
         # one first sample event for stream
         self._first_sample_events = [threading.Event() for _ in self._streams]
@@ -855,81 +855,85 @@ class RTDataPlayerMulti:
     def _listen(self, t_start) -> None:
         _LOGGER.info('sonification thread started')
 
-        # send start bundle
-        self._son.s.bundler().add(self._son.start()).send()
+        try:
+            # send start bundle
+            self._son.s.bundler().add(self._son.start()).send()
 
-        # wait for every stream to start producing data
-        for event in self._first_sample_events:
-            event.wait()
+            # wait for every stream to start producing data
+            for event in self._first_sample_events:
+                event.wait()
 
-        i = 1
-        t0 = time()
+            i = 1
+            t0 = time()
 
-        while self._running:
-            # there's no need to copy the data, as series elements are not modified
-            # TODO: use verify_integrity=True only the first time?
-            row = pd.concat(self._stream_slots, verify_integrity=True)
-            # TODO: decide how to handle consumer_timestamp
-            row['timestamp'] = time() - t_start
+            while self._running:
+                # there's no need to copy the data, as series elements are not modified
+                # TODO: use verify_integrity=True only the first time?
+                row = pd.concat(self._stream_slots, verify_integrity=True)
+                # TODO: decide how to handle consumer_timestamp
+                row['timestamp'] = time() - t_start
 
-            self._son.s.bundler().add(self._son.process(row)).send()
+                self._son.s.bundler().add(self._son.process(row)).send()
 
-            # TODO: do better and not every time
-            for timestamp in row[row.index.str.match('^[0-9]+_timestamp')]:
-                _LOGGER.debug(f'{row["consumer_timestamp"]}:{timestamp-row["consumer_timestamp"]}')
+                # TODO: do better and not every time
+                for timestamp in row[row.index.str.match('^[0-9]+_timestamp')]:
+                    _LOGGER.debug(f'{row["consumer_timestamp"]}:{timestamp-row["consumer_timestamp"]}')
 
-            if self._logging:
-                # transform into dataframe to log horizontally
-                row_df = row.to_frame().transpose()
-                if self._first_line:
-                    # write header and row
-                    row_df.to_csv(self._logfile, mode='w', index=False)
-                    self._first_line = False
+                if self._logging:
+                    # transform into dataframe to log horizontally
+                    row_df = row.to_frame().transpose()
+                    if self._first_line:
+                        # write header and row
+                        row_df.to_csv(self._logfile, mode='w', index=False)
+                        self._first_line = False
+                    else:
+                        # append row to file
+                        row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+
+                if self._feature_display:
+                    self._feature_display.feed(row)
+
+                target_time = t0 + i / self._fps
+                i += 1
+
+                waiting_time = target_time - time()
+
+                if waiting_time > 0:
+                    sleep(waiting_time)
                 else:
-                    # append row to file
-                    row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+                    _LOGGER.warning(f'sonification thread is {-waiting_time}s late')
 
-            if self._feature_display:
-                self._feature_display.feed(row)
+            # send stop bundle
+            self._son.s.bundler().add(self._son.stop()).send()
 
-            target_time = t0 + i / self._fps
-            i += 1
-
-            waiting_time = target_time - time()
-
-            if waiting_time > 0:
-                sleep(waiting_time)
-            else:
-                _LOGGER.warning(f'sonification thread is {-waiting_time}s late')
-
-        # send stop bundle
-        self._son.s.bundler().add(self._son.stop()).send()
-
-        # this is relevant when the for loop ends naturally
-        self._running = False
-        _LOGGER.info('sonification thread ended')
+        finally:
+            # this is relevant when the for loop ends naturally
+            self._running = False
+            _LOGGER.info('sonification thread ended')
 
     def _stream(self, idx: int, t_start):
         _LOGGER.info(f'stream {idx} opened')
 
-        data_generator = self._streams[idx]()
+        try:
+            data_generator = self._streams[idx]()
 
-        # get first data sample
-        self._stream_slots[idx] = next(data_generator)
-        self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
-
-        # signal event to main thread
-        self._first_sample_events[idx].set()
-
-        for row in data_generator:
-            if not self._running:
-                break
-            self._stream_slots[idx] = row
+            # get first data sample
+            self._stream_slots[idx] = next(data_generator)
             self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
-            # TODO: add logging
+            # signal event to main thread
+            self._first_sample_events[idx].set()
 
-        _LOGGER.info(f'stream {idx} closed')
+            for row in data_generator:
+                if not self._running:
+                    break
+                self._stream_slots[idx] = row
+                self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
+
+                # TODO: add logging
+        finally:
+            self._running = False
+            _LOGGER.info(f'stream {idx} closed')
 
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayerMulti':
         self._listen_hooks.append((hook, args, kwargs))
