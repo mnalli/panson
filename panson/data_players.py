@@ -806,6 +806,14 @@ class RTDataPlayerMulti:
         self._logfile = None
         self._first_line = False
 
+        self._stream_logging = [
+            {
+                'logging': False,
+                'logfile': None,
+                'first_line': False
+            } for i in range(len(self._streams))
+        ]
+
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
         self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
@@ -1028,6 +1036,29 @@ class RTDataPlayerMulti:
         if self._video_player:
             self._video_player.stop()
 
+    def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
+        if self._stream_logging[idx]['logging']:
+            raise ValueError("Already logging.")
+
+        if path is None:
+            path = f'{idx}_log.csv'
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
+
+        self._stream_logging[idx]['logging'] = True
+        self._stream_logging[idx]['logfile'] = path
+        self._stream_logging[idx]['first_line'] = True
+
+    def log_stop_stream(self, idx: int) -> None:
+        if not self._stream_logging[idx]['logging']:
+            raise ValueError("Start logging first!")
+
+        self._stream_logging[idx]['logging'] = False
+        self._stream_logging[idx]['logfile'] = None
+
     def _get_ipywidget(self):
         listen = widgets.Button(icon='play')
         close = widgets.Button(icon='stop')
@@ -1065,11 +1096,27 @@ class RTDataPlayerMulti:
             description='Overwrite'
         )
 
-        log_box = widgets.HBox([log, log_out, log_overwrite])
+        main_log_box = widgets.HBox([log, log_out, log_overwrite])
 
-        clear_out = widgets.Button(
-            description='Clear output'
-        )
+        stream_log_boxes = []
+        for i in range(len(self._streams)):
+            log = widgets.ToggleButton(
+                value=False,
+                description='Log',
+                icon='save'
+            )
+            log_out = widgets.Text(
+                value=f'{i}_log.csv',
+                description='Output path:',
+            )
+            log_overwrite = widgets.Checkbox(
+                value=False,
+                description='Overwrite'
+            )
+            log_box = widgets.HBox([log, log_out, log_overwrite])
+            stream_log_boxes.append(log_box)
+
+        clear_out = widgets.Button(description='Clear output')
 
         out = widgets.Output(layout={'border': '1px solid black'})
 
@@ -1102,12 +1149,28 @@ class RTDataPlayerMulti:
 
         log.observe(toggle_log, 'value')
 
+        def toggle_log_stream_gen(idx):
+            def toggle_log_stream(value):
+                with out:
+                    if value['new']:
+                        self.log_start_stream(
+                            idx,
+                            stream_log_boxes[idx].children[1].value,
+                            overwrite=stream_log_boxes[idx].children[2].value
+                        )
+                    else:
+                        self.log_stop_stream(idx)
+            return toggle_log_stream
+
+        for i, log_box in enumerate(stream_log_boxes):
+            log_box.children[0].observe(toggle_log_stream_gen(i), 'value')
+
         def on_clear(button):
             out.clear_output()
 
         clear_out.on_click(on_clear)
 
-        widget = widgets.VBox([controls, record_box, log_box, clear_out, out])
+        widget = widgets.VBox([controls, record_box, main_log_box, *stream_log_boxes, clear_out, out])
 
         return widget
 
