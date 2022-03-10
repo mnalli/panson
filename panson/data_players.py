@@ -852,7 +852,7 @@ class RTDataPlayerMulti:
 
         self._main_worker.start()
 
-    def _listen(self, t0) -> None:
+    def _listen(self, t_start) -> None:
         _LOGGER.info('sonification thread started')
 
         # send start bundle
@@ -870,7 +870,7 @@ class RTDataPlayerMulti:
             # TODO: use verify_integrity=True only the first time?
             row = pd.concat(self._stream_slots, verify_integrity=True)
             # TODO: decide how to handle consumer_timestamp
-            row['consumer_timestamp'] = time()
+            row['timestamp'] = time() - t_start
 
             self._son.s.bundler().add(self._son.process(row)).send()
 
@@ -909,14 +909,14 @@ class RTDataPlayerMulti:
         self._running = False
         _LOGGER.info('sonification thread ended')
 
-    def _stream(self, idx: int, t0):
+    def _stream(self, idx: int, t_start):
         _LOGGER.info(f'stream {idx} opened')
 
         data_generator = self._streams[idx]()
 
         # get first data sample
         self._stream_slots[idx] = next(data_generator)
-        self._stream_slots[idx][f'{idx}_timestamp'] = time()
+        self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
         # signal event to main thread
         self._first_sample_events[idx].set()
@@ -925,7 +925,7 @@ class RTDataPlayerMulti:
             if not self._running:
                 break
             self._stream_slots[idx] = row
-            self._stream_slots[idx][f'{idx}_timestamp'] = time()
+            self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
             # TODO: add logging
 
