@@ -834,10 +834,12 @@ class RTDataPlayerMulti:
         _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
         self.exec_hooks(self._listen_hooks)
 
-        self._main_worker = Thread(name='listener', target=self._listen)
+        t0 = time()
+
+        self._main_worker = Thread(name='listener', target=self._listen, args=(t0,))
         # allocate one thread for each stream
         self._stream_workers = [
-            Thread(name=f'stream_{i}', target=self._stream, args=(i,)) for i in range(len(self._streams))
+            Thread(name=f'stream_{i}', target=self._stream, args=(i, t0)) for i in range(len(self._streams))
         ]
         # one first sample event for stream
         self._first_sample_events = [threading.Event() for _ in self._streams]
@@ -850,15 +852,15 @@ class RTDataPlayerMulti:
 
         self._main_worker.start()
 
-    def _listen(self) -> None:
+    def _listen(self, t0) -> None:
         _LOGGER.info('sonification thread started')
+
+        # send start bundle
+        self._son.s.bundler().add(self._son.start()).send()
 
         # wait for every stream to start producing data
         for event in self._first_sample_events:
             event.wait()
-
-        # send start bundle
-        self._son.s.bundler().add(self._son.start()).send()
 
         i = 1
         t0 = time()
@@ -867,12 +869,16 @@ class RTDataPlayerMulti:
             # there's no need to copy the data, as series elements are not modified
             # TODO: use verify_integrity=True only the first time?
             row = pd.concat(self._stream_slots, verify_integrity=True)
+            # TODO: decide how to handle consumer_timestamp
+            row['consumer_timestamp'] = time()
 
             self._son.s.bundler().add(self._son.process(row)).send()
 
+            # TODO: do better and not every time
+            for timestamp in row[row.index.str.match('^[0-9]+_timestamp')]:
+                _LOGGER.debug(f'{row["consumer_timestamp"]}:{timestamp-row["consumer_timestamp"]}')
+
             if self._logging:
-                # TODO: decide how to handle consumer_timestamp
-                row['consumer_timestamp'] = time()
                 # transform into dataframe to log horizontally
                 row_df = row.to_frame().transpose()
                 if self._first_line:
@@ -903,12 +909,15 @@ class RTDataPlayerMulti:
         self._running = False
         _LOGGER.info('sonification thread ended')
 
-    def _stream(self, idx: int):
+    def _stream(self, idx: int, t0):
         _LOGGER.info(f'stream {idx} opened')
 
         data_generator = self._streams[idx]()
+
         # get first data sample
         self._stream_slots[idx] = next(data_generator)
+        self._stream_slots[idx][f'{idx}_timestamp'] = time()
+
         # signal event to main thread
         self._first_sample_events[idx].set()
 
@@ -916,6 +925,8 @@ class RTDataPlayerMulti:
             if not self._running:
                 break
             self._stream_slots[idx] = row
+            self._stream_slots[idx][f'{idx}_timestamp'] = time()
+
             # TODO: add logging
 
         _LOGGER.info(f'stream {idx} closed')
