@@ -14,6 +14,8 @@ from .sonification import Sonification, GroupSonification
 from .live_features import LiveFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
 
+from .views import RTDataPlayerWidgetView
+
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
 import ipywidgets as widgets
@@ -529,11 +531,11 @@ class RTDataPlayer:
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
         self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
 
-        # create widget only once
-        self._widget = self._get_ipywidget()
-
         self._feature_display = feature_display
         self._video_player = video_player
+
+        # create widget only if needed (lazy)
+        self._widget_view = None
 
     @property
     def sonification(self) -> Union[Sonification, GroupSonification]:
@@ -682,91 +684,11 @@ class RTDataPlayer:
         if self._video_player:
             self._video_player.stop()
 
-    def _get_ipywidget(self):
-        listen = widgets.Button(icon='play')
-        close = widgets.Button(icon='stop')
-        # TODO: add pause button ("mute" is more appropriate)
-
-        controls = widgets.HBox([listen, close])
-
-        record = widgets.ToggleButton(
-            value=False,
-            description='Record',
-            icon='microphone'
-        )
-        record_out = widgets.Text(
-            value='record.wav',
-            description='Output path:',
-        )
-        record_overwrite = widgets.Checkbox(
-            value=False,
-            description='Overwrite'
-        )
-
-        record_box = widgets.HBox([record, record_out, record_overwrite])
-
-        log = widgets.ToggleButton(
-            value=False,
-            description='Log',
-            icon='save'
-        )
-        log_out = widgets.Text(
-            value='log.csv',
-            description='Output path:',
-        )
-        log_overwrite = widgets.Checkbox(
-            value=False,
-            description='Overwrite'
-        )
-
-        log_box = widgets.HBox([log, log_out, log_overwrite])
-
-        clear_out = widgets.Button(
-            description='Clear output'
-        )
-
-        out = widgets.Output(layout={'border': '1px solid black'})
-
-        def on_listen(button):
-            with out:
-                self.listen()
-
-        def on_close(button):
-            with out:
-                self.close()
-
-        listen.on_click(on_listen)
-        close.on_click(on_close)
-
-        def toggle_record(value):
-            with out:
-                if value['new']:
-                    self.record_start(record_out.value, overwrite=record_overwrite.value)
-                else:
-                    self.record_stop()
-
-        record.observe(toggle_record, 'value')
-
-        def toggle_log(value):
-            with out:
-                if value['new']:
-                    self.log_start(log_out.value, overwrite=log_overwrite.value)
-                else:
-                    self.log_stop()
-
-        log.observe(toggle_log, 'value')
-
-        def on_clear(button):
-            out.clear_output()
-
-        clear_out.on_click(on_clear)
-
-        widget = widgets.VBox([controls, record_box, log_box, clear_out, out])
-
-        return widget
-
     def _ipython_display_(self):
-        display(self._widget)
+        if self._widget_view is None:
+            self._widget_view = RTDataPlayerWidgetView(self)
+
+        display(self._widget_view)
 
 
 class RTDataPlayerMulti:
