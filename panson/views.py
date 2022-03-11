@@ -135,6 +135,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
 
         self._widget = VBox([
             *self._widget.children[:3],
+            # add one log box for every stream
             *self.stream_log_boxes,
             *self._widget.children[3:]
         ])

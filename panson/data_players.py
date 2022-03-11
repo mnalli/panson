@@ -807,7 +807,7 @@ class RTDataPlayerMulti:
 
                 # TODO: do better and not every time
                 for timestamp in row[row.index.str.match('^[0-9]+_timestamp')]:
-                    _LOGGER.debug(f'{row["consumer_timestamp"]}:{timestamp-row["consumer_timestamp"]}')
+                    _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
 
                 if self._logging:
                     # transform into dataframe to log horizontally
