@@ -5,7 +5,7 @@ from IPython.display import display
 
 class RTDataPlayerWidgetView:
 
-    def __init__(self, player: 'RTDataPlayer'):
+    def __init__(self, player):
         self._player = player
 
         # player controls
@@ -105,3 +105,50 @@ class RTDataPlayerWidgetView:
 
     def _on_clear(self, button):
         self._out.clear_output()
+
+
+class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
+
+    def __init__(self, player):
+        super().__init__(player)
+
+        self.stream_log_boxes = []
+
+        for i in range(len(player._streams)):
+            log = widgets.ToggleButton(
+                value=False,
+                description='Log',
+                icon='save'
+            )
+            log_output = widgets.Text(
+                value=f'{i}_log.csv',
+                description='Output path:',
+            )
+            log_overwrite = widgets.Checkbox(
+                value=False,
+                description='Overwrite'
+            )
+            self.stream_log_boxes.append(HBox([log, log_output, log_overwrite]))
+
+        for i, log_box in enumerate(self.stream_log_boxes):
+            log_box.children[0].observe(self._toggle_log_stream_gen(i), 'value')
+
+        self._widget = VBox([
+            *self._widget.children[:3],
+            *self.stream_log_boxes,
+            *self._widget.children[3:]
+        ])
+
+    def _toggle_log_stream_gen(self, idx):
+        def toggle_log_stream(value):
+            with self._out:
+                if value['new']:
+                    self._player.log_start_stream(
+                        idx,
+                        self.stream_log_boxes[idx].children[1].value,
+                        overwrite=self.stream_log_boxes[idx].children[2].value
+                    )
+                else:
+                    self._player.log_stop_stream(idx)
+
+        return toggle_log_stream
