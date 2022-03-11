@@ -3,6 +3,134 @@ from ipywidgets import HBox, VBox
 from IPython.display import display
 
 
+class DataPlayerWidgetView:
+
+    def __init__(self, player, max_idx):
+        self._player = player
+
+        self.slider = widgets.IntSlider(
+            value=self._player._ptr,
+            min=0,
+            max=max_idx,
+            layout=widgets.Layout(width='98%'),
+            # continuous_update=False
+        )
+
+        beginning = widgets.Button(icon='fast-backward')
+        end = widgets.Button(icon='fast-forward')
+
+        backward = widgets.Button(icon='step-backward')
+        forward = widgets.Button(icon='step-forward')
+
+        pause = widgets.Button(icon='pause')
+        play = widgets.Button(icon='play')
+
+        rate = widgets.FloatText(
+            value=self._player.rate,
+            description='Rate:',
+        )
+
+        record = widgets.ToggleButton(
+            value=False,
+            description='Record',
+            icon='microphone'
+        )
+        self.record_output = widgets.Text(
+            value='record.wav',
+            description='Output path:',
+        )
+        self.record_overwrite = widgets.Checkbox(
+            value=False,
+            description='Overwrite'
+        )
+
+        clear_out = widgets.Button(description='Clear output')
+
+        # TODO: fix output display problem
+        self._out = widgets.Output(layout={'border': '1px solid black'})
+
+        self._widget = VBox([
+            self.slider,
+            HBox([beginning, backward, pause, play, forward, end]),
+            rate,
+            HBox([record, self.record_output, self.record_overwrite]),
+            clear_out,
+            self._out
+        ])
+
+        # bind callbacks
+        self.slider.observe(self._on_change, 'value')
+
+        beginning.on_click(self._on_beginning)
+        end.on_click(self._on_end)
+
+        backward.on_click(self._on_backward)
+        forward.on_click(self._on_forward)
+
+        pause.on_click(self._on_pause)
+        play.on_click(self._on_play)
+
+        rate.observe(self._on_rate, 'value')
+
+        record.observe(self._toggle_record, 'value')
+
+        clear_out.on_click(self._on_clear)
+
+    def _ipython_display_(self):
+        display(self._widget)
+
+    def print(self, s: str):
+        """Print using output widget."""
+        with self._out:
+            print(s)
+
+    def _on_change(self, value):
+        with self._out:
+            self._player._seek_idx(value['new'])
+
+    def _on_beginning(self, button):
+        with self._out:
+            self.slider.value = 0
+
+    def _on_end(self, button):
+        with self._out:
+            self.slider.value = self._player._df.index[-1]
+
+    def _on_pause(self, button):
+        with self._out:
+            self._player.pause()
+
+    def _on_play(self, button):
+        with self._out:
+            self._player.play()
+
+    # TODO: atomicity of the update?
+    def _on_backward(self, button):
+        with self._out:
+            self.slider.value -= 10
+
+    def _on_forward(self, button):
+        with self._out:
+            self.slider.value += 10
+
+    def _on_rate(self, value):
+        with self._out:
+            self._player.rate = value['new']
+
+    def _toggle_record(self, value):
+        with self._out:
+            if value['new']:
+                self._player.record_start(
+                    self.record_output.value,
+                    overwrite=self.record_overwrite.value
+                )
+            else:
+                self._player.record_stop()
+
+    def _on_clear(self, button):
+        self._out.clear_output()
+
+
 class RTDataPlayerWidgetView:
 
     def __init__(self, player):
@@ -133,9 +261,9 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
         for i, log_box in enumerate(self.stream_log_boxes):
             log_box.children[0].observe(self._toggle_log_stream_gen(i), 'value')
 
+        # add one log box for every stream to the widget of the superclass
         self._widget = VBox([
             *self._widget.children[:3],
-            # add one log box for every stream
             *self.stream_log_boxes,
             *self._widget.children[3:]
         ])
