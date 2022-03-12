@@ -8,8 +8,8 @@ class DataPlayerWidgetView:
     def __init__(self, player, max_idx):
         self._player = player
 
-        self.slider = widgets.IntSlider(
-            value=self._player._ptr,
+        self._slider = widgets.IntSlider(
+            value=self._player.ptr,
             min=0,
             max=max_idx,
             layout=widgets.Layout(width='98%'),
@@ -50,7 +50,7 @@ class DataPlayerWidgetView:
         self._out = widgets.Output(layout={'border': '1px solid black'})
 
         self._widget = VBox([
-            self.slider,
+            self._slider,
             HBox([beginning, backward, pause, play, forward, end]),
             rate,
             HBox([record, self.record_output, self.record_overwrite]),
@@ -59,7 +59,7 @@ class DataPlayerWidgetView:
         ])
 
         # bind callbacks
-        self.slider.observe(self._on_change, 'value')
+        self._slider.observe(self._on_change, 'value')
 
         beginning.on_click(self._on_beginning)
         end.on_click(self._on_end)
@@ -84,17 +84,36 @@ class DataPlayerWidgetView:
         with self._out:
             print(s)
 
+    def update_slider(self, value):
+        """Update slider without triggering any callback."""
+        assert 0 <= value <= self._slider.max
+
+        # unobserve callback
+        self._slider.unobserve(self._on_change, 'value')
+        # update
+        self._slider.value = value
+        # observe again
+        self._slider.observe(self._on_change, 'value')
+
+    def update_slider_max(self, value):
+        """Change maximum value of the slider.
+
+        Useful when loading new data.
+        """
+        self._slider.max = value
+
     def _on_change(self, value):
         with self._out:
-            self._player._seek_idx(value['new'])
+            # seek index
+            self._player.seek(value['new'])
 
     def _on_beginning(self, button):
         with self._out:
-            self.slider.value = 0
+            self._slider.value = 0
 
     def _on_end(self, button):
         with self._out:
-            self.slider.value = self._player._df.index[-1]
+            self._slider.value = self._slider.max
 
     def _on_pause(self, button):
         with self._out:
@@ -107,11 +126,11 @@ class DataPlayerWidgetView:
     # TODO: atomicity of the update?
     def _on_backward(self, button):
         with self._out:
-            self.slider.value -= 10
+            self._slider.value -= 10
 
     def _on_forward(self, button):
         with self._out:
-            self.slider.value += 10
+            self._slider.value += 10
 
     def _on_rate(self, value):
         with self._out:
@@ -242,7 +261,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
 
         self.stream_log_boxes = []
 
-        for i in range(len(player._streams)):
+        for i in range(len(player.streams)):
             log = widgets.ToggleButton(
                 value=False,
                 description='Log',
@@ -259,7 +278,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
             self.stream_log_boxes.append(HBox([log, log_output, log_overwrite]))
 
         for i, log_box in enumerate(self.stream_log_boxes):
-            log_box.children[0].observe(self._toggle_log_stream_gen(i), 'value')
+            log_box.children[0].observe(self._toggle_log_stream_factory(i), 'value')
 
         # add one log box for every stream to the widget of the superclass
         self._widget = VBox([
@@ -268,7 +287,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
             *self._widget.children[3:]
         ])
 
-    def _toggle_log_stream_gen(self, idx):
+    def _toggle_log_stream_factory(self, idx):
         def toggle_log_stream(value):
             with self._out:
                 if value['new']:

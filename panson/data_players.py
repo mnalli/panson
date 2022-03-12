@@ -18,7 +18,6 @@ from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMul
 
 from typing import Union, Any, Callable, Generator, List, Tuple, Dict
 
-import ipywidgets as widgets
 from IPython.display import display
 
 import subprocess
@@ -73,6 +72,10 @@ class DataPlayer:
         self._son = son
 
     @property
+    def ptr(self) -> int:
+        return self._ptr
+
+    @property
     def rate(self) -> Union[int, float]:
         return self._rate
 
@@ -108,9 +111,8 @@ class DataPlayer:
                 f"Needing {pd.DataFrame} or a path to a csv file."
             )
 
-        # TODO
         if self._widget_view is not None:
-            self._widget_view.slider.max = self._df.index[-1]
+            self._widget_view.update_slider_max(self._df.index[-1])
 
         self._fps = fps
         self._ptr = 0
@@ -193,14 +195,8 @@ class DataPlayer:
             # update pointer to current row
             self._ptr = ptr
 
-            # TODO: refactor
-            if self._widget_view is not None:
-                slider = self._widget_view.slider
-                callback = slider._trait_notifiers['value']['change'][0]
-
-                slider.unobserve(callback, 'value')
-                slider.value = self._ptr
-                slider.observe(callback, 'value')
+            if self._widget_view:
+                self._widget_view.update_slider(self._ptr)
 
             # sleep for the missing time
             waiting_time = target_time - time()
@@ -639,6 +635,10 @@ class RTDataPlayerMulti:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
         self._son = son
+
+    @property
+    def streams(self) -> list[Callable[[], Generator]]:
+        return self._streams
 
     def listen(self) -> None:
         if self._running:
