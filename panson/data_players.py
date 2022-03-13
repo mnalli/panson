@@ -31,34 +31,24 @@ _LOGGER = logging.getLogger(__name__)
 # TODO: widgets are not updated when the data player state is changed programmatically
 
 
-class DataPlayer:
+class _DataPlayerBase:
 
     def __init__(
             self,
-            sonification: Union[Sonification, GroupSonification] = None,
+            sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
-            video_player: VideoPlayer = None
+            video_player: Union[VideoPlayer, RTVideoPlayer] = None
     ):
-        # worker thread
-        self._worker = None
+        self._son = sonification
         # run flag
         self._running = False
-        # playback rate
-        self._rate = 1
-
-        self._son = sonification
-
+        # worker thread that computes the sonification
+        self._worker = None
+        # scn.Recorder object
         self._recorder = None
-
-        # load data
-        self._df = self._fps = self._time_key = None
-        # index of the current data point to play
-        self._ptr = 0
 
         self._feature_display = feature_display
         self._video_player = video_player
-
-        self._widget_view = None
 
     @property
     def sonification(self) -> Union[Sonification, GroupSonification]:
@@ -70,6 +60,51 @@ class DataPlayer:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
         self._son = son
+
+    def record_start(self, path: str = 'record.wav', overwrite=False) -> None:
+        # TODO: this sends the recorder definition every time.
+        # can we do better?
+
+        if self._recorder is not None:
+            raise ValueError("Recorder already working.")
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
+
+        self._recorder = scn.Recorder(path=path, server=self._son.s)
+        # send start bundle to the server
+        self._recorder.start()
+
+    def record_stop(self) -> None:
+        if self._recorder is None:
+            raise ValueError("Start the recorder first!")
+
+        # send stop bundle to the server
+        self._recorder.stop()
+        self._recorder = None
+
+
+class DataPlayer(_DataPlayerBase):
+
+    def __init__(
+            self,
+            sonification: Union[Sonification, GroupSonification],
+            feature_display: LiveFeatureDisplay = None,
+            video_player: VideoPlayer = None
+    ):
+        super().__init__(sonification, feature_display, video_player)
+
+        # playback rate
+        self._rate = 1
+
+        # load data
+        self._df = self._fps = self._time_key = None
+        # index of the current data point to play
+        self._ptr = 0
+
+        self._widget_view = None
 
     @property
     def ptr(self) -> int:
@@ -275,31 +310,6 @@ class DataPlayer:
         else:
             self._ptr = idx
 
-    # TODO: the code in RTDataPlayer is duplicated...
-    def record_start(self, path: str = 'record.wav', overwrite=False) -> None:
-        # TODO: this sends the recorder definition every time.
-        # can we do better?
-
-        if self._recorder is not None:
-            raise ValueError("Recorder already working.")
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._recorder = scn.Recorder(path=path, server=self._son.s)
-        # send start bundle to the server
-        self._recorder.start()
-
-    def record_stop(self) -> None:
-        if self._recorder is None:
-            raise ValueError("Start the recorder first!")
-
-        # send stop bundle to the server
-        self._recorder.stop()
-        self._recorder = None
-
     def _get_score(self, end_delay) -> Dict[float, List[scn.OSCMessage]]:
 
         # shallow copy: this works only if the user redefines object that would
@@ -382,25 +392,15 @@ class DataPlayer:
         display(self._widget_view)
 
 
-class RTDataPlayer:
+class _RTDataPlayerBase(_DataPlayerBase):
 
     def __init__(
             self,
-            datagen_function: Callable[[], Generator],
-            sonification: Union[Sonification, GroupSonification] = None,
+            sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
-        self._datagen = datagen_function
-
-        # worker thread
-        self._worker = None
-        # run flag
-        self._running = False
-
-        self._son = sonification
-
-        self._recorder = None
+        super().__init__(sonification, feature_display, video_player)
 
         self._logging = False
         self._logfile = None
@@ -408,131 +408,16 @@ class RTDataPlayer:
 
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
-        self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
-
-        self._feature_display = feature_display
-        self._video_player = video_player
-
-        # create widget only if needed (lazy)
-        self._widget_view = None
-
-    @property
-    def sonification(self) -> Union[Sonification, GroupSonification]:
-        return self._son
-
-    @sonification.setter
-    def sonification(self, son):
-        if self._running:
-            # the sonification must be stopped before changing it
-            raise ValueError("Cannot change sonification while playing.")
-        self._son = son
-
-    def listen(self) -> None:
-        if self._running:
-            raise ValueError("Already listening!")
-
-        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
-        self.exec_hooks(self._listen_hooks)
-
-        self._running = True
-
-        self._worker = Thread(name='listener', target=self._listen)
-        self._worker.start()
-
-    def _listen(self) -> None:
-        _LOGGER.info('listener thread started')
-
-        # send start bundle
-        self._son.s.bundler().add(self._son.start()).send()
-
-        for row in self._datagen():
-
-            if not self._running:
-                # close was called
-                break
-
-            self._son.s.bundler().add(self._son.process(row)).send()
-
-            if self._logging:
-                row_df = row.to_frame().transpose()
-                if self._first_line:
-                    # write header and row
-                    row_df.to_csv(self._logfile, mode='w', index=False)
-                    self._first_line = False
-                else:
-                    # append row to file
-                    row_df.to_csv(self._logfile, mode='a', header=False, index=False)
-
-            if self._feature_display:
-                self._feature_display.feed(row)
-
-        # send stop bundle
-        self._son.s.bundler().add(self._son.stop()).send()
-
-        # this is relevant when the for loop ends naturally
-        self._running = False
-        _LOGGER.info('listener thread ended')
-
-    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayer':
-        self._listen_hooks.append((hook, args, kwargs))
-
-        # return self for chaining
-        return self
-
-    def close(self) -> None:
-        if not self._running:
-            raise ValueError('Already closed!')
-        # stop workin thread
-        self._running = False
-        self._worker.join()
-
-        _LOGGER.debug("Executing close hooks %s", self._close_hooks)
-        self.exec_hooks(self._close_hooks)
-
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayer':
-        self._close_hooks.append((hook, args, kwargs))
-
-        # return self for chaining
-        return self
-
-    @staticmethod
-    def exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
-        for hook, args, kwargs in hooks:
-            if args and kwargs:
-                hook(*args, **kwargs)
-            elif args:
-                hook(*args)
-            elif kwargs:
-                hook(**kwargs)
-            else:
-                hook()
+        self._close_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
 
     def record_start(self, path='record.wav', overwrite=False) -> None:
-        # TODO: this sends the recorder definition every time.
-        # can we do better?
-
-        if self._recorder is not None:
-            raise ValueError("Recorder already working.")
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._recorder = scn.Recorder(path=path, server=self._son.s)
-        # send start bundle to the server
-        self._recorder.start()
+        super().record_start(path, overwrite)
 
         if self._video_player:
             self._video_player.record()
 
     def record_stop(self) -> None:
-        if self._recorder is None:
-            raise ValueError("Start the recorder first!")
-
-        # send stop bundle to the server
-        self._recorder.stop()
-        self._recorder = None
+        super().record_stop()
 
         if self._video_player:
             self._video_player.stop()
@@ -563,6 +448,102 @@ class RTDataPlayer:
         if self._video_player:
             self._video_player.stop()
 
+    def _log_row(self, row: pd.Series):
+        row_df = row.to_frame().transpose()
+        if self._first_line:
+            # write header and row
+            row_df.to_csv(self._logfile, mode='w', index=False)
+            self._first_line = False
+        else:
+            # append row to file
+            row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+
+    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs):
+        self._listen_hooks.append((hook, args, kwargs))
+        return self
+
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs):
+        self._close_hooks.append((hook, args, kwargs))
+        return self
+
+    @staticmethod
+    def _exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
+        for hook, args, kwargs in hooks:
+            if args and kwargs:
+                hook(*args, **kwargs)
+            elif args:
+                hook(*args)
+            elif kwargs:
+                hook(**kwargs)
+            else:
+                hook()
+
+
+class RTDataPlayer(_RTDataPlayerBase):
+
+    def __init__(
+            self,
+            datagen_function: Callable[[], Generator],
+            sonification: Union[Sonification, GroupSonification],
+            feature_display: LiveFeatureDisplay = None,
+            video_player: RTVideoPlayer = None
+    ):
+        super().__init__(sonification, feature_display, video_player)
+
+        self._datagen = datagen_function
+
+        # create widget only if needed (lazy)
+        self._widget_view = None
+
+    def listen(self) -> None:
+        if self._running:
+            raise ValueError("Already listening!")
+
+        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
+        self._exec_hooks(self._listen_hooks)
+
+        self._running = True
+
+        self._worker = Thread(name='listener', target=self._listen)
+        self._worker.start()
+
+    def _listen(self) -> None:
+        _LOGGER.info('listener thread started')
+
+        # send start bundle
+        self._son.s.bundler().add(self._son.start()).send()
+
+        for row in self._datagen():
+
+            if not self._running:
+                # close was called
+                break
+
+            self._son.s.bundler().add(self._son.process(row)).send()
+
+            if self._logging:
+                self._log_row(row)
+
+            if self._feature_display:
+                self._feature_display.feed(row)
+
+        # send stop bundle
+        self._son.s.bundler().add(self._son.stop()).send()
+
+        # this is relevant when the for loop ends naturally
+        self._running = False
+        _LOGGER.info('listener thread ended')
+
+    def close(self) -> None:
+        if not self._running:
+            raise ValueError('Already closed!')
+        # stop workin thread
+        self._running = False
+        self._worker.join()
+
+        _LOGGER.debug("Executing close hooks %s", self._close_hooks)
+        self._exec_hooks(self._close_hooks)
+
     def _ipython_display_(self):
         if self._widget_view is None:
             self._widget_view = RTDataPlayerWidgetView(self)
@@ -570,16 +551,18 @@ class RTDataPlayer:
         display(self._widget_view)
 
 
-class RTDataPlayerMulti:
+class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def __init__(
             self,
             fps,
             datagen_functions: list[Callable[[], Generator]],
-            sonification: Union[Sonification, GroupSonification] = None,
+            sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
+        super().__init__(sonification, feature_display, video_player)
+
         self._fps = fps
 
         if len(datagen_functions) == 0:
@@ -589,23 +572,10 @@ class RTDataPlayerMulti:
 
         self._streams = datagen_functions
 
-        # worker thread
-        self._main_worker = None
         self._stream_workers = [None] * len(self._streams)
         self._stream_slots = [None] * len(self._streams)
-        #
+        # events that are set when the stream generates the first data sample
         self._first_sample_events = None
-
-        # run flag
-        self._running = False
-
-        self._son = sonification
-
-        self._recorder = None
-
-        self._logging = False
-        self._logfile = None
-        self._first_line = False
 
         self._stream_logging = [
             {
@@ -615,26 +585,8 @@ class RTDataPlayerMulti:
             } for i in range(len(self._streams))
         ]
 
-        # hooks
-        self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
-        self._close_hooks:  List[Tuple[Callable[..., None], Any, Any]] = []
-
-        self._feature_display = feature_display
-        self._video_player = video_player
-
         # create widget only if needed (lazy)
         self._widget_view = None
-
-    @property
-    def sonification(self) -> Union[Sonification, GroupSonification]:
-        return self._son
-
-    @sonification.setter
-    def sonification(self, son):
-        if self._running:
-            # the sonification must be stopped before changing it
-            raise ValueError("Cannot change sonification while playing.")
-        self._son = son
 
     @property
     def streams(self) -> list[Callable[[], Generator]]:
@@ -645,11 +597,11 @@ class RTDataPlayerMulti:
             raise ValueError("Already listening!")
 
         _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
-        self.exec_hooks(self._listen_hooks)
+        self._exec_hooks(self._listen_hooks)
 
         t_start = time()
 
-        self._main_worker = Thread(name='listener', target=self._listen, args=(t_start,))
+        self._worker = Thread(name='listener', target=self._listen, args=(t_start,))
         # allocate one thread for each stream
         self._stream_workers = [
             Thread(name=f'stream_{i}', target=self._stream, args=(i, t_start)) for i in range(len(self._streams))
@@ -663,7 +615,7 @@ class RTDataPlayerMulti:
         for thread in self._stream_workers:
             thread.start()
 
-        self._main_worker.start()
+        self._worker.start()
 
     def _listen(self, t_start) -> None:
         _LOGGER.info('sonification thread started')
@@ -693,15 +645,7 @@ class RTDataPlayerMulti:
                     _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
 
                 if self._logging:
-                    # transform into dataframe to log horizontally
-                    row_df = row.to_frame().transpose()
-                    if self._first_line:
-                        # write header and row
-                        row_df.to_csv(self._logfile, mode='w', index=False)
-                        self._first_line = False
-                    else:
-                        # append row to file
-                        row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+                    self._log_row(row)
 
                 if self._feature_display:
                     self._feature_display.feed(row)
@@ -748,98 +692,18 @@ class RTDataPlayerMulti:
             self._running = False
             _LOGGER.info(f'stream {idx} closed')
 
-    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayerMulti':
-        self._listen_hooks.append((hook, args, kwargs))
-
-        # return self for chaining
-        return self
-
     def close(self) -> None:
         if not self._running:
             raise ValueError('Already closed!')
         # stop workin thread
         self._running = False
-        self._main_worker.join()
+        self._worker.join()
 
         for thread in self._stream_workers:
             thread.join()
 
         _LOGGER.debug("Executing close hooks %s", self._close_hooks)
-        self.exec_hooks(self._close_hooks)
-
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'RTDataPlayerMulti':
-        self._close_hooks.append((hook, args, kwargs))
-
-        # return self for chaining
-        return self
-
-    @staticmethod
-    def exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
-        for hook, args, kwargs in hooks:
-            if args and kwargs:
-                hook(*args, **kwargs)
-            elif args:
-                hook(*args)
-            elif kwargs:
-                hook(**kwargs)
-            else:
-                hook()
-
-    def record_start(self, path='record.wav', overwrite=False) -> None:
-        # TODO: this sends the recorder definition every time.
-        # can we do better?
-
-        if self._recorder is not None:
-            raise ValueError("Recorder already working.")
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._recorder = scn.Recorder(path=path, server=self._son.s)
-        # send start bundle to the server
-        self._recorder.start()
-
-        if self._video_player:
-            self._video_player.record()
-
-    def record_stop(self) -> None:
-        if self._recorder is None:
-            raise ValueError("Start the recorder first!")
-
-        # send stop bundle to the server
-        self._recorder.stop()
-        self._recorder = None
-
-        if self._video_player:
-            self._video_player.stop()
-
-    def log_start(self, path='log.csv', overwrite=False) -> None:
-        if self._logging:
-            raise ValueError("Already logging.")
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._logging = True
-        self._logfile = path
-        self._first_line = True
-
-        if self._video_player:
-            self._video_player.record()
-
-    def log_stop(self) -> None:
-        if not self._logging:
-            raise ValueError("Start logging first!")
-
-        self._logging = False
-        self._logfile = None
-
-        if self._video_player:
-            self._video_player.stop()
+        self._exec_hooks(self._close_hooks)
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
         if self._stream_logging[idx]['logging']:
