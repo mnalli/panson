@@ -517,14 +517,14 @@ class RTDataPlayer(_RTDataPlayerBase):
 
         header = next(data_generator)
 
-        for i, row in enumerate(data_generator):
+        for row in data_generator:
 
             if not self._running:
                 # close was called
                 break
 
             # TODO: change hardcoded dtype
-            series = pd.Series(row, header, dtype='float', name=i)
+            series = pd.Series(row, header, dtype='float')
 
             self._son.s.bundler().add(self._son.process(series)).send()
 
