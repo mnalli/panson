@@ -513,19 +513,26 @@ class RTDataPlayer(_RTDataPlayerBase):
         # send start bundle
         self._son.s.bundler().add(self._son.start()).send()
 
-        for row in self._datagen():
+        data_generator = self._datagen()
+
+        header = next(data_generator)
+
+        for i, row in enumerate(data_generator):
 
             if not self._running:
                 # close was called
                 break
 
-            self._son.s.bundler().add(self._son.process(row)).send()
+            # TODO: change hardcoded dtype
+            series = pd.Series(row, header, dtype='float', name=i)
+
+            self._son.s.bundler().add(self._son.process(series)).send()
 
             if self._logging:
-                self._log_row(row)
+                self._log_row(series)
 
             if self._feature_display:
-                self._feature_display.feed(row)
+                self._feature_display.feed(series)
 
         # send stop bundle
         self._son.s.bundler().add(self._son.stop()).send()
@@ -672,8 +679,15 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         try:
             data_generator = self._streams[idx]()
 
+            header = next(data_generator)
+
             # get first data sample
-            self._stream_slots[idx] = next(data_generator)
+            row = next(data_generator)
+
+            # TODO: change hardcoded dtype
+            series = pd.Series(row, header, dtype='float')
+
+            self._stream_slots[idx] = series
             self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
             # signal event to main thread
@@ -682,7 +696,10 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             for row in data_generator:
                 if not self._running:
                     break
-                self._stream_slots[idx] = row
+
+                series = pd.Series(row, header, dtype='float')
+
+                self._stream_slots[idx] = series
                 self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
                 # TODO: add logging
