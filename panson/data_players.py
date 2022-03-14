@@ -567,8 +567,6 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
         if len(datagen_functions) == 0:
             raise ValueError("Empty list of generator functions.")
-        elif len(datagen_functions) == 1:
-            raise ValueError("If you have only one stream, use RTDataPlayer.")
 
         self._streams = datagen_functions
 
