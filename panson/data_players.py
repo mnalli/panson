@@ -18,7 +18,7 @@ from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
 
-from typing import Union, Any, Callable, Generator, List, Tuple, Dict
+from typing import Union, Any, Callable, List, Tuple, Dict
 
 from IPython.display import display
 
@@ -614,7 +614,11 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._worker = Thread(name='listener', target=self._listen, args=(t_start,))
         # allocate one thread for each stream
         self._stream_workers = [
-            Thread(name=f'stream_{i}', target=self._stream, args=(i, t_start)) for i in range(len(self._streams))
+            Thread(
+                name=f'{stream.name}-thread',
+                target=self._stream,
+                args=(i, t_start)
+            ) for i, stream in enumerate(self._streams)
         ]
         # one first sample event for stream
         self._first_sample_events = [threading.Event() for _ in self._streams]
@@ -651,8 +655,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 self._son.s.bundler().add(self._son.process(row)).send()
 
                 # TODO: do better and not every time
-                for timestamp in row[row.index.str.match('^[0-9]+_timestamp')]:
-                    _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
+                # for timestamp in row[row.index.str.match('_timestamp$')]:
+                #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
 
                 if self._logging:
                     self._log_row(row)
@@ -679,10 +683,13 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             _LOGGER.info('sonification thread ended')
 
     def _stream(self, idx: int, t_start):
-        _LOGGER.info(f'stream {idx} opened')
+        assert 0 <= idx < len(self._streams)
+
+        stream = self._streams[idx]
+        _LOGGER.info(f'stream {stream.name} opened')
 
         try:
-            data_generator = self._streams[idx].open()
+            data_generator = stream.open()
 
             header = next(data_generator)
             # TODO: validate data
@@ -690,11 +697,11 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             # get first data sample
             row = next(data_generator)
 
-            # TODO: change hardcoded dtype
-            series = pd.Series(row, header, dtype=self._streams[idx].dtype)
+            series = pd.Series(row, header, dtype=stream.dtype)
+            # add stream timestamp
+            series[f'{stream.name}_timestamp'] = time() - t_start
 
             self._stream_slots[idx] = series
-            self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
             # signal event to main thread
             self._first_sample_events[idx].set()
@@ -703,15 +710,16 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 if not self._running:
                     break
 
-                series = pd.Series(row, header, dtype=self._streams[idx].dtype)
+                series = pd.Series(row, header, dtype=stream.dtype)
+                # add stream timestamp
+                series[f'{stream.name}_timestamp'] = time() - t_start
 
                 self._stream_slots[idx] = series
-                self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
 
                 # TODO: add logging
         finally:
             self._running = False
-            _LOGGER.info(f'stream {idx} closed')
+            _LOGGER.info(f'stream {stream.name} closed')
 
     def close(self) -> None:
         if not self._running:

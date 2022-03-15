@@ -11,7 +11,6 @@ class Stream:
         if kwargs is None:
             kwargs = {}
 
-        # TODO: use names
         self.name = name
         self.dtype = dtype
         self._datagen = datagen
