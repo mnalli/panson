@@ -11,6 +11,8 @@ from time import time, sleep
 from threading import Thread
 
 from .sonification import Sonification, GroupSonification
+from .streams import Stream
+
 from .live_features import LiveFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
 
@@ -483,14 +485,14 @@ class RTDataPlayer(_RTDataPlayerBase):
 
     def __init__(
             self,
-            datagen_function: Callable[[], Generator],
+            stream: Stream,
             sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
         super().__init__(sonification, feature_display, video_player)
 
-        self._datagen = datagen_function
+        self._stream = stream
 
         # create widget only if needed (lazy)
         self._widget_view = None
@@ -513,9 +515,10 @@ class RTDataPlayer(_RTDataPlayerBase):
         # send start bundle
         self._son.s.bundler().add(self._son.start()).send()
 
-        data_generator = self._datagen()
+        data_generator = self._stream.open()
 
         header = next(data_generator)
+        # TODO: validate header
 
         for row in data_generator:
 
@@ -523,12 +526,13 @@ class RTDataPlayer(_RTDataPlayerBase):
                 # close was called
                 break
 
-            # TODO: change hardcoded dtype
-            series = pd.Series(row, header, dtype='float')
+            series = pd.Series(row, header, dtype=self._stream.dtype)
 
+            # compute and send sonification information
             self._son.s.bundler().add(self._son.process(series)).send()
 
             if self._logging:
+                # TODO: log lists
                 self._log_row(series)
 
             if self._feature_display:
@@ -563,7 +567,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
     def __init__(
             self,
             fps,
-            datagen_functions: list[Callable[[], Generator]],
+            streams: list[Stream],
             sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
@@ -572,16 +576,17 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
         self._fps = fps
 
-        if len(datagen_functions) == 0:
+        if len(streams) == 0:
             raise ValueError("Empty list of generator functions.")
 
-        self._streams = datagen_functions
+        self._streams = streams
 
         self._stream_workers = [None] * len(self._streams)
         self._stream_slots = [None] * len(self._streams)
         # events that are set when the stream generates the first data sample
         self._first_sample_events = None
 
+        # TODO: use log records
         self._stream_logging = [
             {
                 'logging': False,
@@ -594,7 +599,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._widget_view = None
 
     @property
-    def streams(self) -> list[Callable[[], Generator]]:
+    def streams(self) -> list[Stream]:
         return self._streams
 
     def listen(self) -> None:
@@ -677,15 +682,16 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         _LOGGER.info(f'stream {idx} opened')
 
         try:
-            data_generator = self._streams[idx]()
+            data_generator = self._streams[idx].open()
 
             header = next(data_generator)
+            # TODO: validate data
 
             # get first data sample
             row = next(data_generator)
 
             # TODO: change hardcoded dtype
-            series = pd.Series(row, header, dtype='float')
+            series = pd.Series(row, header, dtype=self._streams[idx].dtype)
 
             self._stream_slots[idx] = series
             self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
@@ -697,7 +703,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 if not self._running:
                     break
 
-                series = pd.Series(row, header, dtype='float')
+                series = pd.Series(row, header, dtype=self._streams[idx].dtype)
 
                 self._stream_slots[idx] = series
                 self._stream_slots[idx][f'{idx}_timestamp'] = time() - t_start
