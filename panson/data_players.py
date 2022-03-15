@@ -460,6 +460,18 @@ class _RTDataPlayerBase(_DataPlayerBase):
             # append row to file
             row_df.to_csv(self._logfile, mode='a', header=False, index=False)
 
+    @staticmethod
+    def _validate_header(header):
+        # TODO: do better
+        for label in header:
+            if not isinstance(label, str):
+                raise ValueError(f"Label {label} isn't a string")
+
+        size = len(header)
+        set_size = len(set(header))
+        if set_size < size:
+            raise ValueError("Header has duplicated elements")
+
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs):
         self._listen_hooks.append((hook, args, kwargs))
         return self
@@ -519,7 +531,7 @@ class RTDataPlayer(_RTDataPlayerBase):
             data_generator = self._stream.open()
 
             header = next(data_generator)
-            # TODO: validate header
+            self._validate_header(header)
 
             for row in data_generator:
 
