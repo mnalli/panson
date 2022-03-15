@@ -465,12 +465,12 @@ class _RTDataPlayerBase(_DataPlayerBase):
         # TODO: do better
         for label in header:
             if not isinstance(label, str):
-                raise ValueError(f"Label {label} isn't a string")
+                raise ValueError(f"{threading.get_native_id()}: Label {label} isn't a string")
 
         size = len(header)
         set_size = len(set(header))
         if set_size < size:
-            raise ValueError("Header has duplicated elements")
+            raise ValueError(f"{threading.get_native_id()}: Header has duplicated elements")
 
     def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs):
         self._listen_hooks.append((hook, args, kwargs))
@@ -705,7 +705,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             data_generator = stream.open()
 
             header = next(data_generator)
-            # TODO: validate data
+            self._validate_header(header)
 
             # get first data sample
             row = next(data_generator)
