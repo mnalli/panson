@@ -512,38 +512,39 @@ class RTDataPlayer(_RTDataPlayerBase):
     def _listen(self) -> None:
         _LOGGER.info('listener thread started')
 
-        # send start bundle
-        self._son.s.bundler().add(self._son.start()).send()
+        try:
+            # send start bundle
+            self._son.s.bundler().add(self._son.start()).send()
 
-        data_generator = self._stream.open()
+            data_generator = self._stream.open()
 
-        header = next(data_generator)
-        # TODO: validate header
+            header = next(data_generator)
+            # TODO: validate header
 
-        for row in data_generator:
+            for row in data_generator:
 
-            if not self._running:
-                # close was called
-                break
+                if not self._running:
+                    # close was called
+                    break
 
-            series = pd.Series(row, header, dtype=self._stream.dtype)
+                series = pd.Series(row, header, dtype=self._stream.dtype)
 
-            # compute and send sonification information
-            self._son.s.bundler().add(self._son.process(series)).send()
+                # compute and send sonification information
+                self._son.s.bundler().add(self._son.process(series)).send()
 
-            if self._logging:
-                # TODO: log lists
-                self._log_row(series)
+                if self._logging:
+                    # TODO: log lists
+                    self._log_row(series)
 
-            if self._feature_display:
-                self._feature_display.feed(series)
+                if self._feature_display:
+                    self._feature_display.feed(series)
 
-        # send stop bundle
-        self._son.s.bundler().add(self._son.stop()).send()
-
-        # this is relevant when the for loop ends naturally
-        self._running = False
-        _LOGGER.info('listener thread ended')
+            # send stop bundle
+            self._son.s.bundler().add(self._son.stop()).send()
+        finally:
+            # this is relevant when the for loop ends naturally
+            self._running = False
+            _LOGGER.info('listener thread ended')
 
     def close(self) -> None:
         if not self._running:
