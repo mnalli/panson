@@ -394,6 +394,14 @@ class DataPlayer(_DataPlayerBase):
         display(self._widget_view)
 
 
+class LogRecord:
+
+    def __init__(self):
+        self.logging = False
+        self.logfile = None
+        self.first_line = False
+
+
 class _RTDataPlayerBase(_DataPlayerBase):
 
     def __init__(
@@ -404,9 +412,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
     ):
         super().__init__(sonification, feature_display, video_player)
 
-        self._logging = False
-        self._logfile = None
-        self._first_line = False
+        self._log_record = LogRecord()
 
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
@@ -433,32 +439,32 @@ class _RTDataPlayerBase(_DataPlayerBase):
                 raise FileExistsError(
                     f'{path} already exists. Use overwrite=True to overwrite it.')
 
-        self._logging = True
-        self._logfile = path
-        self._first_line = True
+        self._log_record.logging = True
+        self._log_record.logfile = path
+        self._log_record.first_line = True
 
         if self._video_player:
             self._video_player.record()
 
     def log_stop(self) -> None:
-        if not self._logging:
+        if not self._log_record.logging:
             raise ValueError("Start logging first!")
 
-        self._logging = False
-        self._logfile = None
+        self._log_record.logging = False
+        self._log_record.logfile = None
 
         if self._video_player:
             self._video_player.stop()
 
     def _log_row(self, row: pd.Series):
         row_df = row.to_frame().transpose()
-        if self._first_line:
+        if self._log_record.first_line:
             # write header and row
-            row_df.to_csv(self._logfile, mode='w', index=False)
-            self._first_line = False
+            row_df.to_csv(self._log_record.logfile, mode='w', index=False)
+            self._log_record._first_line = False
         else:
             # append row to file
-            row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+            row_df.to_csv(self._log_record.logfile, mode='a', header=False, index=False)
 
     @staticmethod
     def _validate_header(header):
@@ -544,7 +550,7 @@ class RTDataPlayer(_RTDataPlayerBase):
                 # compute and send sonification information
                 self._son.s.bundler().add(self._son.process(series)).send()
 
-                if self._logging:
+                if self._log_record.logging:
                     # TODO: log lists
                     self._log_row(series)
 
@@ -599,14 +605,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         # events that are set when the stream generates the first data sample
         self._first_sample_events = None
 
-        # TODO: use log records
-        self._stream_logging = [
-            {
-                'logging': False,
-                'logfile': None,
-                'first_line': False
-            } for i in range(len(self._streams))
-        ]
+        self._stream_logging = [LogRecord() for i in range(len(self._streams))]
 
         # create widget only if needed (lazy)
         self._widget_view = None
@@ -662,7 +661,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 # there's no need to copy the data, as series elements are not modified
                 # TODO: use verify_integrity=True only the first time?
                 row = pd.concat(self._stream_slots, verify_integrity=True)
-                # TODO: decide how to handle consumer_timestamp
+                # TODO: decide how to handle timestamp
                 row['timestamp'] = time() - t_start
 
                 self._son.s.bundler().add(self._son.process(row)).send()
@@ -671,7 +670,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 # for timestamp in row[row.index.str.match('_timestamp$')]:
                 #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
 
-                if self._logging:
+                if self._log_record.logging:
                     self._log_row(row)
 
                 if self._feature_display:
@@ -729,7 +728,9 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 self._stream_slots[idx] = series
 
-                # TODO: add logging
+                if self._stream_logging[idx].logging:
+                    self._log_row_stream(idx, series)
+
         finally:
             self._running = False
             _LOGGER.info(f'stream {stream.name} closed')
@@ -748,27 +749,37 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._exec_hooks(self._close_hooks)
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
-        if self._stream_logging[idx]['logging']:
+        if self._stream_logging[idx].logging:
             raise ValueError("Already logging.")
 
         if path is None:
-            path = f'{idx}_log.csv'
+            path = f'{self._streams[idx].name}_log.csv'
 
         if os.path.exists(path):
             if not overwrite:
                 raise FileExistsError(
                     f'{path} already exists. Use overwrite=True to overwrite it.')
 
-        self._stream_logging[idx]['logging'] = True
-        self._stream_logging[idx]['logfile'] = path
-        self._stream_logging[idx]['first_line'] = True
+        self._stream_logging[idx].logging = True
+        self._stream_logging[idx].logfile = path
+        self._stream_logging[idx].first_line = True
 
     def log_stop_stream(self, idx: int) -> None:
-        if not self._stream_logging[idx]['logging']:
+        if not self._stream_logging[idx].logging:
             raise ValueError("Start logging first!")
 
-        self._stream_logging[idx]['logging'] = False
-        self._stream_logging[idx]['logfile'] = None
+        self._stream_logging[idx].logging = False
+        self._stream_logging[idx].logfile = None
+
+    def _log_row_stream(self, idx: int, row: pd.Series):
+        row_df = row.to_frame().transpose()
+        if self._stream_logging[idx].first_line:
+            # write header and row
+            row_df.to_csv(self._stream_logging[idx].logfile, mode='w', index=False)
+            self._stream_logging[idx].first_line = False
+        else:
+            # append row to file
+            row_df.to_csv(self._stream_logging[idx].logfile, mode='a', header=False, index=False)
 
     def _ipython_display_(self):
         if self._widget_view is None:
