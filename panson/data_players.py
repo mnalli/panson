@@ -394,12 +394,47 @@ class DataPlayer(_DataPlayerBase):
         display(self._widget_view)
 
 
-class LogRecord:
+class DataLogger:
 
     def __init__(self):
         self.logging = False
-        self.logfile = None
-        self.first_line = False
+        self._logfile = None
+        self._first_line = False
+
+    def start(self, path: str, overwrite: bool):
+        if self.logging:
+            raise ValueError("Already logging.")
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f'{path} already exists. Use overwrite=True to overwrite it.')
+
+        self.logging = True
+        self._logfile = path
+        self._first_line = True
+
+    def stop(self):
+        if not self.logging:
+            raise ValueError("Start logger first!")
+
+        self.logging = False
+        self._logfile = None
+
+    def feed(self, row: pd.Series):
+        if not self.logging:
+            raise ValueError('Start logger first!')
+
+        # TODO: simplify
+
+        row_df = row.to_frame().transpose()
+        if self._first_line:
+            # write header and row
+            row_df.to_csv(self._logfile, mode='w', index=False)
+            self._first_line = False
+        else:
+            # append row to file
+            row_df.to_csv(self._logfile, mode='a', header=False, index=False)
 
 
 class _RTDataPlayerBase(_DataPlayerBase):
@@ -412,7 +447,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
     ):
         super().__init__(sonification, feature_display, video_player)
 
-        self._log_record = LogRecord()
+        self._logger = DataLogger()
 
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
@@ -431,40 +466,17 @@ class _RTDataPlayerBase(_DataPlayerBase):
             self._video_player.stop()
 
     def log_start(self, path='log.csv', overwrite=False) -> None:
-        if self._logging:
-            raise ValueError("Already logging.")
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._log_record.logging = True
-        self._log_record.logfile = path
-        self._log_record.first_line = True
+        self._logger.start(path, overwrite)
 
         if self._video_player:
+            # TODO: send time reference
             self._video_player.record()
 
     def log_stop(self) -> None:
-        if not self._log_record.logging:
-            raise ValueError("Start logging first!")
-
-        self._log_record.logging = False
-        self._log_record.logfile = None
+        self._logger.stop()
 
         if self._video_player:
             self._video_player.stop()
-
-    def _log_row(self, row: pd.Series):
-        row_df = row.to_frame().transpose()
-        if self._log_record.first_line:
-            # write header and row
-            row_df.to_csv(self._log_record.logfile, mode='w', index=False)
-            self._log_record._first_line = False
-        else:
-            # append row to file
-            row_df.to_csv(self._log_record.logfile, mode='a', header=False, index=False)
 
     @staticmethod
     def _validate_header(header):
@@ -550,9 +562,8 @@ class RTDataPlayer(_RTDataPlayerBase):
                 # compute and send sonification information
                 self._son.s.bundler().add(self._son.process(series)).send()
 
-                if self._log_record.logging:
-                    # TODO: log lists
-                    self._log_row(series)
+                if self._logger.logging:
+                    self._logger.feed(series)
 
                 if self._feature_display:
                     self._feature_display.feed(series)
@@ -600,12 +611,16 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
         self._streams = streams
 
-        self._stream_workers = [None] * len(self._streams)
-        self._stream_slots = [None] * len(self._streams)
+        # threads that fetch data from the streams
+        self._stream_workers = None
+
+        # slots for storing data current values
+        self._stream_slots = None
+
         # events that are set when the stream generates the first data sample
         self._first_sample_events = None
 
-        self._stream_logging = [LogRecord() for i in range(len(self._streams))]
+        self._stream_loggers = [DataLogger() for _ in self._streams]
 
         # create widget only if needed (lazy)
         self._widget_view = None
@@ -632,6 +647,10 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 args=(i, t_start)
             ) for i, stream in enumerate(self._streams)
         ]
+
+        # allocate slots' memory
+        self._stream_slots = [None] * len(self._streams)
+
         # one first sample event for stream
         self._first_sample_events = [threading.Event() for _ in self._streams]
 
@@ -658,9 +677,12 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             t0 = time()
 
             while self._running:
-                # there's no need to copy the data, as series elements are not modified
-                # TODO: use verify_integrity=True only the first time?
-                row = pd.concat(self._stream_slots, verify_integrity=True)
+                if i == 1:
+                    # verify integrity only on the first iteration
+                    row = pd.concat(self._stream_slots, verify_integrity=True)
+                else:
+                    row = pd.concat(self._stream_slots)
+
                 # TODO: decide how to handle timestamp
                 row['timestamp'] = time() - t_start
 
@@ -670,8 +692,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 # for timestamp in row[row.index.str.match('_timestamp$')]:
                 #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
 
-                if self._log_record.logging:
-                    self._log_row(row)
+                if self._logger.logging:
+                    self._logger.feed(row)
 
                 if self._feature_display:
                     self._feature_display.feed(row)
@@ -728,8 +750,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 self._stream_slots[idx] = series
 
-                if self._stream_logging[idx].logging:
-                    self._log_row_stream(idx, series)
+                if self._stream_loggers[idx].logging:
+                    self._stream_loggers[idx].feed(series)
 
         finally:
             self._running = False
@@ -749,37 +771,10 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._exec_hooks(self._close_hooks)
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
-        if self._stream_logging[idx].logging:
-            raise ValueError("Already logging.")
-
-        if path is None:
-            path = f'{self._streams[idx].name}_log.csv'
-
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
-
-        self._stream_logging[idx].logging = True
-        self._stream_logging[idx].logfile = path
-        self._stream_logging[idx].first_line = True
+        self._stream_loggers[idx].start(path, overwrite)
 
     def log_stop_stream(self, idx: int) -> None:
-        if not self._stream_logging[idx].logging:
-            raise ValueError("Start logging first!")
-
-        self._stream_logging[idx].logging = False
-        self._stream_logging[idx].logfile = None
-
-    def _log_row_stream(self, idx: int, row: pd.Series):
-        row_df = row.to_frame().transpose()
-        if self._stream_logging[idx].first_line:
-            # write header and row
-            row_df.to_csv(self._stream_logging[idx].logfile, mode='w', index=False)
-            self._stream_logging[idx].first_line = False
-        else:
-            # append row to file
-            row_df.to_csv(self._stream_logging[idx].logfile, mode='a', header=False, index=False)
+        self._stream_loggers[idx].stop()
 
     def _ipython_display_(self):
         if self._widget_view is None:
