@@ -694,9 +694,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 self._son.s.bundler().add(self._son.process(row)).send()
 
-                # TODO: do better and not every time
-                # for timestamp in row[row.index.str.match('_timestamp$')]:
-                #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp-row["timestamp"]}')
+                # for timestamp in row[[f'{stream.name}_timestamp' for stream in self._streams]]:
+                #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp - row["timestamp"]}')
 
                 if self._logger.logging:
                     self._logger.feed(row)
