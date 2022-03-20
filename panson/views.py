@@ -44,17 +44,11 @@ class DataPlayerWidgetView:
             description='Overwrite'
         )
 
-        clear_out = widgets.Button(description='Clear output')
-
-        self.out = widgets.Output(layout={'border': '1px solid black'})
-
         self._widget = VBox([
             self._slider,
             HBox([beginning, backward, pause, play, forward, end]),
             rate,
-            HBox([record, self.record_output, self.record_overwrite]),
-            clear_out,
-            self.out
+            HBox([record, self.record_output, self.record_overwrite])
         ])
 
         # bind callbacks
@@ -73,15 +67,8 @@ class DataPlayerWidgetView:
 
         record.observe(self._toggle_record, 'value')
 
-        clear_out.on_click(self._on_clear)
-
     def _ipython_display_(self):
         display(self._widget)
-
-    def print(self, s: str):
-        """Print using output widget."""
-        with self.out:
-            print(s)
 
     def update_slider(self, value):
         """Update slider without triggering any callback."""
@@ -102,51 +89,39 @@ class DataPlayerWidgetView:
         self._slider.max = value
 
     def _on_change(self, value):
-        with self.out:
-            # seek index
-            self._player.seek(value['new'])
+        # seek index
+        self._player.seek(value['new'])
 
     def _on_beginning(self, button):
-        with self.out:
-            self._slider.value = 0
+        self._slider.value = 0
 
     def _on_end(self, button):
-        with self.out:
-            self._slider.value = self._slider.max
+        self._slider.value = self._slider.max
 
     def _on_pause(self, button):
-        with self.out:
-            self._player.pause()
+        self._player.pause()
 
     def _on_play(self, button):
-        with self.out:
-            self._player.play()
+        self._player.play()
 
     # TODO: atomicity of the update?
     def _on_backward(self, button):
-        with self.out:
-            self._slider.value -= 10
+        self._slider.value -= 10
 
     def _on_forward(self, button):
-        with self.out:
-            self._slider.value += 10
+        self._slider.value += 10
 
     def _on_rate(self, value):
-        with self.out:
-            self._player.rate = value['new']
+        self._player.rate = value['new']
 
     def _toggle_record(self, value):
-        with self.out:
-            if value['new']:
-                self._player.record_start(
-                    self.record_output.value,
-                    overwrite=self.record_overwrite.value
-                )
-            else:
-                self._player.record_stop()
-
-    def _on_clear(self, button):
-        self.out.clear_output()
+        if value['new']:
+            self._player.record_start(
+                self.record_output.value,
+                overwrite=self.record_overwrite.value
+            )
+        else:
+            self._player.record_stop()
 
 
 class RTDataPlayerWidgetView:
@@ -189,13 +164,6 @@ class RTDataPlayerWidgetView:
             description='Overwrite'
         )
 
-        # clear output button
-        clear_output = widgets.Button(
-            description='Clear output'
-        )
-
-        self.out = widgets.Output(layout={'border': '1px solid black'})
-
         # bind callback methods
         listen.on_click(self._on_listen)
         close.on_click(self._on_close)
@@ -203,54 +171,38 @@ class RTDataPlayerWidgetView:
         record.observe(self._toggle_record, 'value')
         log.observe(self._toggle_log, 'value')
 
-        clear_output.on_click(self._on_clear)
-
         self._widget = VBox([
             HBox([listen, close]),
             HBox([record, self._record_output, self._record_overwrite]),
-            HBox([log, self._log_output, self._log_overwrite]),
-            clear_output,
-            self.out
+            HBox([log, self._log_output, self._log_overwrite])
         ])
 
     def _ipython_display_(self):
         display(self._widget)
 
-    def print(self, s: str):
-        """Print using output widget."""
-        with self.out:
-            print(s)
-
     def _on_listen(self, button):
-        with self.out:
-            self._player.listen()
+        self._player.listen()
 
     def _on_close(self, button):
-        with self.out:
-            self._player.close()
+        self._player.close()
 
     def _toggle_record(self, value):
-        with self.out:
-            if value['new']:
-                self._player.record_start(
-                    self._record_output.value,
-                    overwrite=self._record_overwrite.value
-                )
-            else:
-                self._player.record_stop()
+        if value['new']:
+            self._player.record_start(
+                self._record_output.value,
+                overwrite=self._record_overwrite.value
+            )
+        else:
+            self._player.record_stop()
 
     def _toggle_log(self, value):
-        with self.out:
-            if value['new']:
-                self._player.log_start(
-                    self._log_output.value,
-                    overwrite=self._log_overwrite.value
-                )
-            else:
-                self._player.log_stop()
-
-    def _on_clear(self, button):
-        self.out.clear_output()
+        if value['new']:
+            self._player.log_start(
+                self._log_output.value,
+                overwrite=self._log_overwrite.value
+            )
+        else:
+            self._player.log_stop()
 
 
 class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
@@ -260,14 +212,14 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
 
         self.stream_log_boxes = []
 
-        for i in range(len(player.streams)):
+        for stream in player.streams:
             log = widgets.ToggleButton(
                 value=False,
                 description='Log',
                 icon='save'
             )
             log_output = widgets.Text(
-                value=f'{i}_log.csv',
+                value=f'{stream.name}_log.csv',
                 description='Output path:',
             )
             log_overwrite = widgets.Checkbox(
@@ -281,21 +233,19 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
 
         # add one log box for every stream to the widget of the superclass
         self._widget = VBox([
-            *self._widget.children[:3],
+            *self._widget.children,
             *self.stream_log_boxes,
-            *self._widget.children[3:]
         ])
 
     def _toggle_log_stream_factory(self, idx):
         def toggle_log_stream(value):
-            with self.out:
-                if value['new']:
-                    self._player.log_start_stream(
-                        idx,
-                        self.stream_log_boxes[idx].children[1].value,
-                        overwrite=self.stream_log_boxes[idx].children[2].value
-                    )
-                else:
-                    self._player.log_stop_stream(idx)
+            if value['new']:
+                self._player.log_start_stream(
+                    idx,
+                    self.stream_log_boxes[idx].children[1].value,
+                    overwrite=self.stream_log_boxes[idx].children[2].value
+                )
+            else:
+                self._player.log_stop_stream(idx)
 
         return toggle_log_stream
