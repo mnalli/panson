@@ -362,7 +362,7 @@ class RTVideoPlayerServer:
         # end main loop
         self.app.exit()
 
-    def _start_recording(self):
+    def _start_recording(self, t_start):
         if self._enumerate_records:
             self._fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
             self._run_counter += 1
@@ -376,11 +376,13 @@ class RTVideoPlayerServer:
         self._frame_counter = 0
         # to hold [counter_val, timestamp]
         self._frametimes = []
-        self._t0 = time.time()
+        self._t0 = t_start
 
     def _stop_recording(self):
         self._writer.release()
         print("Release writer")
+
+        # TODO: write while running as the VideoWriter does
 
         np.savetxt(
             f"{self._fname}.csv",
@@ -403,8 +405,8 @@ class RTVideoPlayerServer:
         """Enable or disable auto enumeration of files."""
         self._enumerate_records = val
 
-    def record(self):
-        self._start_recording()
+    def record(self, t_start):
+        self._start_recording(t_start)
         self._recording = True
 
     def stop(self):
@@ -452,8 +454,8 @@ class RTVideoPlayer:
     def set_filename(self, filename: str):
         self._conn.send(('filename', filename))
 
-    def record(self):
-        self._conn.send(('record',))
+    def record(self, t_start):
+        self._conn.send(('record', t_start))
 
     def stop(self):
         self._conn.send(('stop',))

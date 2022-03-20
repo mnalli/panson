@@ -449,15 +449,28 @@ class _RTDataPlayerBase(_DataPlayerBase):
 
         self._logger = DataLogger()
 
+        # this will be set when starting to listen
+        self._t_start = None
+
         # hooks
         self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
         self._close_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
+
+    def listen(self):
+        if self._running:
+            raise ValueError("Already listening!")
+
+        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
+        self._exec_hooks(self._listen_hooks)
+
+        self._running = True
+        self._t_start = time()
 
     def record_start(self, path='record.wav', overwrite=False) -> None:
         super().record_start(path, overwrite)
 
         if self._video_player:
-            self._video_player.record()
+            self._video_player.record(self._t_start)
 
     def record_stop(self) -> None:
         super().record_stop()
@@ -469,8 +482,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
         self._logger.start(path, overwrite)
 
         if self._video_player:
-            # TODO: send time reference
-            self._video_player.record()
+            self._video_player.record(self._t_start)
 
     def log_stop(self) -> None:
         self._logger.stop()
@@ -531,21 +543,15 @@ class RTDataPlayer(_RTDataPlayerBase):
         self._widget_view = None
 
     def listen(self) -> None:
-        if self._running:
-            raise ValueError("Already listening!")
+        super().listen()
 
-        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
-        self._exec_hooks(self._listen_hooks)
-
-        self._running = True
-
-        self._worker = Thread(name='listener', target=self._listen, args=(time(),))
+        self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
 
-    def _listen(self, t_start) -> None:
-        _LOGGER.info('listener thread started')
-
+    def _listen(self) -> None:
         try:
+            _LOGGER.info('listener thread started')
+
             # send start bundle
             self._son.s.bundler().add(self._son.start()).send()
 
@@ -563,7 +569,7 @@ class RTDataPlayer(_RTDataPlayerBase):
                 series = pd.Series(row, header, dtype=self._stream.dtype)
 
                 if self._timestamp:
-                    series['timestamp'] = time() - t_start
+                    series['timestamp'] = time() - self._t_start
 
                 # compute and send sonification information
                 self._son.s.bundler().add(self._son.process(series)).send()
@@ -636,21 +642,15 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         return self._streams
 
     def listen(self) -> None:
-        if self._running:
-            raise ValueError("Already listening!")
+        super().listen()
 
-        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
-        self._exec_hooks(self._listen_hooks)
-
-        t_start = time()
-
-        self._worker = Thread(name='listener', target=self._listen, args=(t_start,))
+        self._worker = Thread(name='listener', target=self._listen)
         # allocate one thread for each stream
         self._stream_workers = [
             Thread(
                 name=f'{stream.name}-thread',
                 target=self._stream,
-                args=(i, t_start)
+                args=(i,)
             ) for i, stream in enumerate(self._streams)
         ]
 
@@ -660,18 +660,16 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         # one first sample event for stream
         self._first_sample_events = [threading.Event() for _ in self._streams]
 
-        self._running = True
-
         # start stream threads
         for thread in self._stream_workers:
             thread.start()
 
         self._worker.start()
 
-    def _listen(self, t_start) -> None:
-        _LOGGER.info('sonification thread started')
-
+    def _listen(self) -> None:
         try:
+            _LOGGER.info('sonification thread started')
+
             # send start bundle
             self._son.s.bundler().add(self._son.start()).send()
 
@@ -690,7 +688,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                     row = pd.concat(self._stream_slots)
 
                 # mandatory timestamp in case of multiple streams
-                row['timestamp'] = time() - t_start
+                row['timestamp'] = time() - self._t_start
 
                 self._son.s.bundler().add(self._son.process(row)).send()
 
@@ -721,13 +719,14 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             self._running = False
             _LOGGER.info('sonification thread ended')
 
-    def _stream(self, idx: int, t_start):
+    def _stream(self, idx: int):
         assert 0 <= idx < len(self._streams)
 
         stream = self._streams[idx]
-        _LOGGER.info(f'stream {stream.name} opened')
 
         try:
+            _LOGGER.info(f'stream {stream.name} opened')
+
             data_generator = stream.open()
 
             header = next(data_generator)
@@ -738,7 +737,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
             series = pd.Series(row, header, dtype=stream.dtype)
             # add stream timestamp
-            series[f'{stream.name}_timestamp'] = time() - t_start
+            series[f'{stream.name}_timestamp'] = time() - self._t_start
 
             self._stream_slots[idx] = series
 
@@ -751,7 +750,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 series = pd.Series(row, header, dtype=stream.dtype)
                 # add stream timestamp
-                series[f'{stream.name}_timestamp'] = time() - t_start
+                series[f'{stream.name}_timestamp'] = time() - self._t_start
 
                 self._stream_slots[idx] = series
 

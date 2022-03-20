@@ -46,8 +46,7 @@ class DataPlayerWidgetView:
 
         clear_out = widgets.Button(description='Clear output')
 
-        # TODO: fix output display problem
-        self._out = widgets.Output(layout={'border': '1px solid black'})
+        self.out = widgets.Output(layout={'border': '1px solid black'})
 
         self._widget = VBox([
             self._slider,
@@ -55,7 +54,7 @@ class DataPlayerWidgetView:
             rate,
             HBox([record, self.record_output, self.record_overwrite]),
             clear_out,
-            self._out
+            self.out
         ])
 
         # bind callbacks
@@ -81,7 +80,7 @@ class DataPlayerWidgetView:
 
     def print(self, s: str):
         """Print using output widget."""
-        with self._out:
+        with self.out:
             print(s)
 
     def update_slider(self, value):
@@ -103,41 +102,41 @@ class DataPlayerWidgetView:
         self._slider.max = value
 
     def _on_change(self, value):
-        with self._out:
+        with self.out:
             # seek index
             self._player.seek(value['new'])
 
     def _on_beginning(self, button):
-        with self._out:
+        with self.out:
             self._slider.value = 0
 
     def _on_end(self, button):
-        with self._out:
+        with self.out:
             self._slider.value = self._slider.max
 
     def _on_pause(self, button):
-        with self._out:
+        with self.out:
             self._player.pause()
 
     def _on_play(self, button):
-        with self._out:
+        with self.out:
             self._player.play()
 
     # TODO: atomicity of the update?
     def _on_backward(self, button):
-        with self._out:
+        with self.out:
             self._slider.value -= 10
 
     def _on_forward(self, button):
-        with self._out:
+        with self.out:
             self._slider.value += 10
 
     def _on_rate(self, value):
-        with self._out:
+        with self.out:
             self._player.rate = value['new']
 
     def _toggle_record(self, value):
-        with self._out:
+        with self.out:
             if value['new']:
                 self._player.record_start(
                     self.record_output.value,
@@ -147,7 +146,7 @@ class DataPlayerWidgetView:
                 self._player.record_stop()
 
     def _on_clear(self, button):
-        self._out.clear_output()
+        self.out.clear_output()
 
 
 class RTDataPlayerWidgetView:
@@ -195,7 +194,7 @@ class RTDataPlayerWidgetView:
             description='Clear output'
         )
 
-        self._out = widgets.Output(layout={'border': '1px solid black'})
+        self.out = widgets.Output(layout={'border': '1px solid black'})
 
         # bind callback methods
         listen.on_click(self._on_listen)
@@ -211,7 +210,7 @@ class RTDataPlayerWidgetView:
             HBox([record, self._record_output, self._record_overwrite]),
             HBox([log, self._log_output, self._log_overwrite]),
             clear_output,
-            self._out
+            self.out
         ])
 
     def _ipython_display_(self):
@@ -219,19 +218,19 @@ class RTDataPlayerWidgetView:
 
     def print(self, s: str):
         """Print using output widget."""
-        with self._out:
+        with self.out:
             print(s)
 
     def _on_listen(self, button):
-        with self._out:
+        with self.out:
             self._player.listen()
 
     def _on_close(self, button):
-        with self._out:
+        with self.out:
             self._player.close()
 
     def _toggle_record(self, value):
-        with self._out:
+        with self.out:
             if value['new']:
                 self._player.record_start(
                     self._record_output.value,
@@ -241,7 +240,7 @@ class RTDataPlayerWidgetView:
                 self._player.record_stop()
 
     def _toggle_log(self, value):
-        with self._out:
+        with self.out:
             if value['new']:
                 self._player.log_start(
                     self._log_output.value,
@@ -251,7 +250,7 @@ class RTDataPlayerWidgetView:
                 self._player.log_stop()
 
     def _on_clear(self, button):
-        self._out.clear_output()
+        self.out.clear_output()
 
 
 class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
@@ -289,7 +288,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
 
     def _toggle_log_stream_factory(self, idx):
         def toggle_log_stream(value):
-            with self._out:
+            with self.out:
                 if value['new']:
                     self._player.log_start_stream(
                         idx,
