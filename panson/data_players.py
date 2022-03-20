@@ -518,11 +518,14 @@ class RTDataPlayer(_RTDataPlayerBase):
             stream: Stream,
             sonification: Union[Sonification, GroupSonification],
             feature_display: LiveFeatureDisplay = None,
-            video_player: RTVideoPlayer = None
+            video_player: RTVideoPlayer = None,
+            timestamp: bool = False
     ):
         super().__init__(sonification, feature_display, video_player)
 
         self._stream = stream
+
+        self._timestamp = timestamp
 
         # create widget only if needed (lazy)
         self._widget_view = None
@@ -536,10 +539,10 @@ class RTDataPlayer(_RTDataPlayerBase):
 
         self._running = True
 
-        self._worker = Thread(name='listener', target=self._listen)
+        self._worker = Thread(name='listener', target=self._listen, args=(time(),))
         self._worker.start()
 
-    def _listen(self) -> None:
+    def _listen(self, t_start) -> None:
         _LOGGER.info('listener thread started')
 
         try:
@@ -558,6 +561,9 @@ class RTDataPlayer(_RTDataPlayerBase):
                     break
 
                 series = pd.Series(row, header, dtype=self._stream.dtype)
+
+                if self._timestamp:
+                    series['timestamp'] = time() - t_start
 
                 # compute and send sonification information
                 self._son.s.bundler().add(self._son.process(series)).send()
@@ -683,7 +689,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 else:
                     row = pd.concat(self._stream_slots)
 
-                # TODO: decide how to handle timestamp
+                # mandatory timestamp in case of multiple streams
                 row['timestamp'] = time() - t_start
 
                 self._son.s.bundler().add(self._son.process(row)).send()
