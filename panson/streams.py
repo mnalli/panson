@@ -18,6 +18,9 @@ class Stream:
         self._args = args
         self._kwargs = kwargs
 
+        # validate generator arguments
+        self.datagen(*args, **kwargs)
+
     def datagen(self, *args, **kwargs) -> Generator:
         if self._datagen:
             return self._datagen(*args, **kwargs)
