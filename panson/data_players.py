@@ -681,6 +681,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             t0 = time()
 
             while self._running:
+
                 if i == 1:
                     # verify integrity only on the first iteration
                     row = pd.concat(self._stream_slots, verify_integrity=True)
@@ -688,6 +689,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                     row = pd.concat(self._stream_slots)
 
                 # mandatory timestamp in case of multiple streams
+                # the shared start time is used as reference
                 row['timestamp'] = time() - self._t_start
 
                 self._son.s.bundler().add(self._son.process(row)).send()
@@ -709,7 +711,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 if waiting_time > 0:
                     sleep(waiting_time)
                 else:
-                    _LOGGER.warning(f'sonification thread is {-waiting_time}s late')
+                    _LOGGER.warning(f'Thread {-waiting_time} s late')
 
             # send stop bundle
             self._son.s.bundler().add(self._son.stop()).send()
