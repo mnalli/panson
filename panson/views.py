@@ -132,7 +132,6 @@ class RTDataPlayerWidgetView:
         # player controls
         listen = widgets.Button(icon='play')
         close = widgets.Button(icon='stop')
-        # TODO: add pause button ("mute" is more appropriate)
 
         # recorder controls
         record = widgets.ToggleButton(
