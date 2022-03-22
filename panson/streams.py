@@ -2,17 +2,19 @@ import csv
 import time
 import math
 
+import numpy as np
+
 from typing import Generator, final
 
 
 class Stream:
 
-    def __init__(self, name, datagen=None, dtype=None, args=(), kwargs=None):
+    def __init__(self, name: str, datagen=None, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
 
         self.name = name
-        self.dtype = dtype
+
         self._datagen = datagen
 
         self._args = args
@@ -45,12 +47,13 @@ class CsvFifo(Stream):
             # blocks if there are no lines
             reader = csv.reader(fifo, skipinitialspace=True)
 
-            # yield header list
-            yield next(reader)
+            # yield header
+            yield np.array(next(reader), dtype=str)
 
             # the loop ends when the pipe is closed from the writing side
             for row in reader:
-                yield row
+                # convert strings into floats
+                yield np.array(row, dtype='float64')
 
 
 class DummySin(Stream):
@@ -64,7 +67,7 @@ class DummySin(Stream):
             # head insert
             header.insert(0, 'timestamp')
 
-        yield header
+        yield np.array(header)
 
         t0 = time.time()
 
@@ -75,7 +78,7 @@ class DummySin(Stream):
             if timestamps:
                 data.insert(0, t)
 
-            yield data
+            yield np.array(data)
 
             # TODO: improve timing
             time.sleep(1 / fps)
@@ -92,7 +95,7 @@ class DummySinCos(Stream):
             # head insert
             header.insert(0, 'timestamp')
 
-        yield header
+        yield np.array(header)
 
         t0 = time.time()
 
@@ -104,7 +107,7 @@ class DummySinCos(Stream):
             if timestamps:
                 data.insert(0, t)
 
-            yield data
+            yield np.array(data)
 
             # TODO: improve timing
             time.sleep(1 / fps)

@@ -568,7 +568,7 @@ class RTDataPlayer(_RTDataPlayerBase):
                     # close was called
                     break
 
-                series = pd.Series(row, header, dtype=self._stream.dtype)
+                series = pd.Series(row, header)
 
                 if self._timestamp:
                     series['timestamp'] = time() - self._t_start
@@ -739,7 +739,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             # get first data sample
             row = next(data_generator)
 
-            series = pd.Series(row, header, dtype=stream.dtype)
+            series = pd.Series(row, header)
             # add stream timestamp
             series[f'{stream.name}_timestamp'] = time() - self._t_start
 
@@ -752,7 +752,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 if not self._running:
                     break
 
-                series = pd.Series(row, header, dtype=stream.dtype)
+                series = pd.Series(row, header)
+
                 # add stream timestamp
                 series[f'{stream.name}_timestamp'] = time() - self._t_start
 
