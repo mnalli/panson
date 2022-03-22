@@ -1,3 +1,4 @@
+import csv
 import threading
 
 import sc3nb as scn
@@ -398,7 +399,8 @@ class DataLogger:
 
     def __init__(self):
         self.logging = False
-        self._logfile = None
+        self._log_file = None
+        self._writer = None
         self._first_line = False
 
     def start(self, path: str, overwrite: bool):
@@ -411,7 +413,8 @@ class DataLogger:
                     f'{path} already exists. Use overwrite=True to overwrite it.')
 
         self.logging = True
-        self._logfile = path
+        self._log_file = open(path, 'w')
+        self._writer = csv.writer(self._log_file)
         self._first_line = True
 
     def stop(self):
@@ -419,22 +422,21 @@ class DataLogger:
             raise ValueError("Start logger first!")
 
         self.logging = False
-        self._logfile = None
+
+        self._log_file.close()
+        self._log_file = None
+
+        self._writer = None
 
     def feed(self, row: pd.Series):
         if not self.logging:
             raise ValueError('Start logger first!')
 
-        # TODO: simplify
-
-        row_df = row.to_frame().transpose()
         if self._first_line:
-            # write header and row
-            row_df.to_csv(self._logfile, mode='w', index=False)
+            self._writer.writerow(row.index)
             self._first_line = False
-        else:
-            # append row to file
-            row_df.to_csv(self._logfile, mode='a', header=False, index=False)
+
+        self._writer.writerow(row.array)
 
 
 class _RTDataPlayerBase(_DataPlayerBase):

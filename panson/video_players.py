@@ -1,4 +1,4 @@
-
+import csv
 import time
 
 from PyQt5 import QtWidgets, QtCore
@@ -348,10 +348,11 @@ class RTVideoPlayerServer:
             self.c.updateImg.emit(frame[:, :, (2, 1, 0)].swapaxes(0, 1))
 
             if self._recording:
-                self._frametimes.append((self._frame_counter, t - self._t0))
-                self._frame_counter += 1
-
+                # log video frame
                 self._writer.write(frame)
+                # log timestamp
+                self._log_writer.writerow([self._frame_counter, t - self._t0])
+                self._frame_counter += 1
 
         if self._recording:
             self._stop_recording()
@@ -373,24 +374,20 @@ class RTVideoPlayerServer:
             self._fname, self._fourcc, self._fps, (self._width, self._height)
         )
 
+        self._log_file = open(f"{self._fname}.csv", 'w')
+        # TODO: add float format precision?
+        self._log_writer = csv.writer(self._log_file)
+        # write header
+        self._log_writer.writerow(['frame_number', 'timestamp'])
+
         self._frame_counter = 0
-        # to hold [counter_val, timestamp]
-        self._frametimes = []
         self._t0 = t_start
 
     def _stop_recording(self):
         self._writer.release()
         print("Release writer")
 
-        # TODO: write while running as the VideoWriter does
-
-        np.savetxt(
-            f"{self._fname}.csv",
-            np.array(self._frametimes),
-            delimiter=',',
-            fmt='%g',
-            header="frame_number, timestamp"
-        )
+        self._log_file.close()
 
     # COMMANDS
 
