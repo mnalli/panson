@@ -70,6 +70,33 @@ class Stream:
         _LOGGER.debug(f"stream {self.name}: execute close hooks")
         self._exec_hooks(self._close_hooks)
 
+    def test(self, test_rows=10, print_header=False):
+        self.exec_open_hooks()
+
+        gen = self.open()
+
+        header = next(gen)
+
+        if print_header:
+            print(header)
+
+        first_row = next(gen)
+
+        if len(header) == len(first_row):
+            print(f'length: {len(first_row)}. dtype: {first_row.dtype}.')
+        else:
+            raise ValueError(
+                f'Header length ({len(header)}) must be equal to row length ({len(first_row)}).'
+            )
+
+        for i, row in zip(range(test_rows), gen):
+            if len(first_row) != len(row):
+                raise ValueError(f'row #{i+1} has length {len(row)}')
+            if first_row.dtype != row.dtype:
+                raise ValueError(f'row #{i+1} has dtype {row.dtype}')
+
+        self.exec_close_hooks()
+
 
 class CsvFifo(Stream):
 
