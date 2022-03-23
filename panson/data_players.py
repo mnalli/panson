@@ -19,7 +19,7 @@ from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
 
-from typing import Union, Any, Callable, List, Tuple, Dict
+from typing import Union, List, Dict
 
 from IPython.display import display
 
@@ -454,16 +454,9 @@ class _RTDataPlayerBase(_DataPlayerBase):
         # this will be set when starting to listen
         self._t_start = None
 
-        # hooks
-        self._listen_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
-        self._close_hooks: List[Tuple[Callable[..., None], Any, Any]] = []
-
     def listen(self):
         if self._running:
             raise ValueError("Already listening!")
-
-        _LOGGER.debug("Executing listen hooks %s", self._listen_hooks)
-        self._exec_hooks(self._listen_hooks)
 
         self._running = True
         self._t_start = time()
@@ -504,26 +497,6 @@ class _RTDataPlayerBase(_DataPlayerBase):
         if set_size < size:
             raise ValueError(f"{threading.get_native_id()}: Header has duplicated elements")
 
-    def add_listen_hook(self, hook: Callable[..., None], *args, **kwargs):
-        self._listen_hooks.append((hook, args, kwargs))
-        return self
-
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs):
-        self._close_hooks.append((hook, args, kwargs))
-        return self
-
-    @staticmethod
-    def _exec_hooks(hooks: List[Tuple[Callable[..., None], Any, Any]]):
-        for hook, args, kwargs in hooks:
-            if args and kwargs:
-                hook(*args, **kwargs)
-            elif args:
-                hook(*args)
-            elif kwargs:
-                hook(**kwargs)
-            else:
-                hook()
-
 
 class RTDataPlayer(_RTDataPlayerBase):
 
@@ -546,6 +519,8 @@ class RTDataPlayer(_RTDataPlayerBase):
 
     def listen(self) -> None:
         super().listen()
+
+        self._stream.exec_open_hooks()
 
         self._worker = Thread(name='listener', target=self._listen)
         self._worker.start()
@@ -596,8 +571,7 @@ class RTDataPlayer(_RTDataPlayerBase):
         self._running = False
         self._worker.join()
 
-        _LOGGER.debug("Executing close hooks %s", self._close_hooks)
-        self._exec_hooks(self._close_hooks)
+        self._stream.exec_close_hooks()
 
     def _ipython_display_(self):
         if self._widget_view is None:
@@ -645,6 +619,9 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def listen(self) -> None:
         super().listen()
+
+        for stream in self._streams:
+            stream.exec_open_hooks()
 
         self._worker = Thread(name='listener', target=self._listen)
         # allocate one thread for each stream
@@ -776,8 +753,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         for thread in self._stream_workers:
             thread.join()
 
-        _LOGGER.debug("Executing close hooks %s", self._close_hooks)
-        self._exec_hooks(self._close_hooks)
+        for stream in self._streams:
+            stream.exec_close_hooks()
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
         self._stream_loggers[idx].start(path, overwrite)

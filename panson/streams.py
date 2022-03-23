@@ -6,6 +6,11 @@ import numpy as np
 
 from typing import Generator, final
 
+from typing import Any, Callable, Tuple
+
+import logging
+_LOGGER = logging.getLogger(__name__)
+
 
 class Stream:
 
@@ -23,6 +28,10 @@ class Stream:
         # validate generator arguments
         self.datagen(*args, **kwargs)
 
+        # hooks
+        self._open_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
+        self._close_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
+
     def datagen(self, *args, **kwargs) -> Generator:
         if self._datagen:
             return self._datagen(*args, **kwargs)
@@ -32,6 +41,34 @@ class Stream:
     @final
     def open(self) -> Generator:
         return self.datagen(*self._args, **self._kwargs)
+
+    def add_open_hook(self, hook: Callable[..., None], *args, **kwargs):
+        self._open_hooks.append((hook, args, kwargs))
+        return self
+
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs):
+        self._close_hooks.append((hook, args, kwargs))
+        return self
+
+    @staticmethod
+    def _exec_hooks(hooks: list[Tuple[Callable[..., None], Any, Any]]):
+        for hook, args, kwargs in hooks:
+            if args and kwargs:
+                hook(*args, **kwargs)
+            elif args:
+                hook(*args)
+            elif kwargs:
+                hook(**kwargs)
+            else:
+                hook()
+
+    def exec_open_hooks(self):
+        _LOGGER.debug(f"stream {self.name}: execute open hooks")
+        self._exec_hooks(self._open_hooks)
+
+    def exec_close_hooks(self):
+        _LOGGER.debug(f"stream {self.name}: execute close hooks")
+        self._exec_hooks(self._close_hooks)
 
 
 class CsvFifo(Stream):
