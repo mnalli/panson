@@ -526,9 +526,9 @@ class RTDataPlayer(_RTDataPlayerBase):
         self._worker.start()
 
     def _listen(self) -> None:
-        try:
-            _LOGGER.info('listener thread started')
+        _LOGGER.info('listener thread started')
 
+        try:
             # send start bundle
             self._son.s.bundler().add(self._son.start()).send()
 
@@ -556,22 +556,22 @@ class RTDataPlayer(_RTDataPlayerBase):
 
                 if self._feature_display:
                     self._feature_display.feed(series)
-
+        finally:
+            # relevant when the for loop ends naturally
+            self._running = False
             # send stop bundle
             self._son.s.bundler().add(self._son.stop()).send()
-        finally:
-            # this is relevant when the for loop ends naturally
-            self._running = False
+
+            self._stream.exec_close_hooks()
             _LOGGER.info('listener thread ended')
 
     def close(self) -> None:
         if not self._running:
             raise ValueError('Already closed!')
+
         # stop workin thread
         self._running = False
         self._worker.join()
-
-        self._stream.exec_close_hooks()
 
     def _ipython_display_(self):
         if self._widget_view is None:
@@ -646,9 +646,9 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._worker.start()
 
     def _listen(self) -> None:
-        try:
-            _LOGGER.info('sonification thread started')
+        _LOGGER.info('sonification thread started')
 
+        try:
             # send start bundle
             self._son.s.bundler().add(self._son.start()).send()
 
@@ -692,22 +692,19 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 else:
                     _LOGGER.warning(f'Thread {-waiting_time} s late')
 
+        finally:
+            self._running = False
             # send stop bundle
             self._son.s.bundler().add(self._son.stop()).send()
-
-        finally:
-            # this is relevant when the for loop ends naturally
-            self._running = False
             _LOGGER.info('sonification thread ended')
 
     def _stream(self, idx: int):
         assert 0 <= idx < len(self._streams)
 
         stream = self._streams[idx]
+        _LOGGER.info(f'stream {stream.name} opened')
 
         try:
-            _LOGGER.info(f'stream {stream.name} opened')
-
             data_generator = stream.open()
 
             header = next(data_generator)
@@ -726,6 +723,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             self._first_sample_events[idx].set()
 
             for row in data_generator:
+
                 if not self._running:
                     break
 
@@ -738,23 +736,22 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 if self._stream_loggers[idx].logging:
                     self._stream_loggers[idx].feed(series)
-
         finally:
             self._running = False
+            stream.exec_close_hooks()
             _LOGGER.info(f'stream {stream.name} closed')
 
     def close(self) -> None:
         if not self._running:
             raise ValueError('Already closed!')
+
         # stop workin thread
         self._running = False
+
         self._worker.join()
 
         for thread in self._stream_workers:
             thread.join()
-
-        for stream in self._streams:
-            stream.exec_close_hooks()
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
         self._stream_loggers[idx].start(path, overwrite)
