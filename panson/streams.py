@@ -32,6 +32,24 @@ class Stream:
         self._open_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
         self._close_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
 
+        # set by test function
+        self._length = None
+        self._dtype = None
+
+    @property
+    def length(self):
+        if self._length is None:
+            raise ValueError('Initialize length first by calling the test method.')
+        else:
+            return self._length
+
+    @property
+    def dtype(self):
+        if self._dtype is None:
+            raise ValueError('Initialize dtype first by calling the test method.')
+        else:
+            return self._dtype
+
     def datagen(self, *args, **kwargs) -> Generator:
         if self._datagen:
             return self._datagen(*args, **kwargs)
@@ -96,6 +114,13 @@ class Stream:
                 raise ValueError(f'row #{i+1} has dtype {row.dtype}')
 
         self.exec_close_hooks()
+
+        print('Set info on data samples:')
+        print(f'    Sample length: {len(first_row)}')
+        print(f'    Sample dtype: {first_row.dtype} ({np.ctypeslib.as_ctypes_type(first_row.dtype)} as ctype)')
+
+        self._length = len(first_row)
+        self._dtype = first_row.dtype
 
 
 class CsvFifo(Stream):
