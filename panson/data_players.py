@@ -622,6 +622,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
     def listen(self) -> None:
         super().listen()
 
+        # execute all opening hooks sequentially, not to mix their output
         for stream in self._streams:
             stream.exec_open_hooks()
 
@@ -665,9 +666,9 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 if i == 1:
                     # verify integrity only on the first iteration
-                    row = pd.concat(self._stream_slots, verify_integrity=True)
+                    row = pd.concat(self._stream_slots, verify_integrity=True, copy=False)
                 else:
-                    row = pd.concat(self._stream_slots)
+                    row = pd.concat(self._stream_slots, copy=False)
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
@@ -795,9 +796,6 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
         # pipe connections to communicate with children processes
         self._pipes = None
 
-        # events that are set when the stream generates the first data sample
-        # self._first_sample_events = None
-
         # self._stream_loggers = [DataLogger() for _ in self._streams]
 
         # create widget only if needed (lazy)
@@ -810,17 +808,16 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
     def listen(self) -> None:
         super().listen()
 
-        # TODO: put in stream process?
+        # execute all opening hooks sequentially, not to mix their output
         for stream in self._streams:
             stream.exec_open_hooks()
 
         # the sonification is computed by a thread of the current process
         self._worker = Thread(name='listener', target=self._listen)
 
-        #
         self._stream_processes = []
-        self._pipes = []
         self._stream_slots = []
+        self._pipes = []
 
         for i, stream in enumerate(self._streams):
             conn, child_conn = mp.Pipe()
@@ -879,9 +876,9 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
                 if i == 1:
                     # verify integrity only on the first iteration
-                    row = pd.concat(series, verify_integrity=True)
+                    row = pd.concat(series, verify_integrity=True, copy=False)
                 else:
-                    row = pd.concat(series)
+                    row = pd.concat(series, copy=False)
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
@@ -945,7 +942,6 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             slot[1:] = row
 
             # signal event to main thread
-            # TODO: use mp.Event?
             conn.send('start')
 
             for row in data_generator:
