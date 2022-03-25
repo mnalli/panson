@@ -125,7 +125,7 @@ class Sonification(ABC):
             self.s.free_all(root=False)
         return bundler
 
-    def process(self, row) -> Bundler:
+    def process(self, row: Series) -> Bundler:
         with self._lock:
             return self._process(row)
 

@@ -28,6 +28,8 @@ import os
 
 import copy
 
+import multiprocessing as mp
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -595,7 +597,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._fps = fps
 
         if len(streams) == 0:
-            raise ValueError("Empty list of generator functions.")
+            raise ValueError("Empty list of streams.")
 
         self._streams = streams
 
@@ -758,6 +760,231 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def log_stop_stream(self, idx: int) -> None:
         self._stream_loggers[idx].stop()
+
+    def _ipython_display_(self):
+        if self._widget_view is None:
+            self._widget_view = RTDataPlayerMultiWidgetView(self)
+
+        display(self._widget_view)
+
+
+class RTDataPlayerMultiParallel(_RTDataPlayerBase):
+
+    def __init__(
+            self,
+            fps,
+            streams: list[Stream],
+            sonification: Union[Sonification, GroupSonification],
+            feature_display: LiveFeatureDisplay = None,
+            video_player: RTVideoPlayer = None
+    ):
+        super().__init__(sonification, feature_display, video_player)
+
+        self._fps = fps
+
+        if len(streams) == 0:
+            raise ValueError("Empty list of streams.")
+
+        self._streams = streams
+
+        # processes that fetch data from streams
+        self._stream_processes = None
+
+        # shared memory slots for storing newest values of streams
+        self._stream_slots = None
+        # pipe connections to communicate with children processes
+        self._pipes = None
+
+        # events that are set when the stream generates the first data sample
+        # self._first_sample_events = None
+
+        # self._stream_loggers = [DataLogger() for _ in self._streams]
+
+        # create widget only if needed (lazy)
+        self._widget_view = None
+
+    @property
+    def streams(self) -> list[Stream]:
+        return self._streams
+
+    def listen(self) -> None:
+        super().listen()
+
+        # TODO: put in stream process?
+        for stream in self._streams:
+            stream.exec_open_hooks()
+
+        # the sonification is computed by a thread of the current process
+        self._worker = Thread(name='listener', target=self._listen)
+
+        #
+        self._stream_processes = []
+        self._pipes = []
+        self._stream_slots = []
+
+        for i, stream in enumerate(self._streams):
+            conn, child_conn = mp.Pipe()
+            self._pipes.append(conn)
+
+            # +1 is for the timestamp
+            # TODO: timestamp is always a float
+            slot = mp.Array(stream.ctype, stream.length + 1)
+            self._stream_slots.append(slot)
+
+            proc = mp.Process(
+                target=self._stream,
+                args=(i, child_conn, slot)
+            )
+            self._stream_processes.append(proc)
+
+        # start stream processes
+        for process in self._stream_processes:
+            process.start()
+
+        self._worker.start()
+
+    def _listen(self) -> None:
+        _LOGGER.info('sonification thread started')
+
+        try:
+            # send start bundle
+            self._son.s.bundler().add(self._son.start()).send()
+
+            headers = [conn.recv() for conn in self._pipes]
+
+            # TODO: merge header and validate?
+
+            for conn in self._pipes:
+                # read start message from every pipe
+                msg = conn.recv()
+                assert msg == 'start'
+
+            i = 1
+            t0 = time()
+
+            while self._running:
+
+                # copy and store slots in local memory
+                stream_slots = [
+                    np.array(slot, dtype=stream.dtype) for stream, slot in zip(self.streams, self._stream_slots)
+                ]
+
+                # TODO: what to do if streams have different types???
+
+                series = [
+                    pd.Series(slot, index=header) for slot, header in zip(stream_slots, headers)
+                ]
+
+                # TODO: do concatenation by hand???
+
+                if i == 1:
+                    # verify integrity only on the first iteration
+                    row = pd.concat(series, verify_integrity=True)
+                else:
+                    row = pd.concat(series)
+
+                # mandatory timestamp in case of multiple streams
+                # the shared start time is used as reference
+                row['timestamp'] = time() - self._t_start
+
+                self._son.s.bundler().add(self._son.process(row)).send()
+
+                # for timestamp in row[[f'{stream.name}_timestamp' for stream in self._streams]]:
+                #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp - row["timestamp"]}')
+
+                if self._logger.logging:
+                    self._logger.feed(row)
+
+                if self._feature_display:
+                    self._feature_display.feed(row)
+
+                target_time = t0 + i / self._fps
+                i += 1
+
+                waiting_time = target_time - time()
+
+                if waiting_time > 0:
+                    sleep(waiting_time)
+                else:
+                    _LOGGER.warning(f'Thread {-waiting_time} s late')
+
+        finally:
+            # send stop bundle
+            self._son.s.bundler().add(self._son.stop()).send()
+            # send stop message to every process
+            for conn in self._pipes:
+                conn.send('stop')
+            _LOGGER.info('sonification thread ended')
+
+    def _stream(self, idx: int, conn: mp.connection.Connection, slot: mp.Array):
+
+        stream = self._streams[idx]
+        _LOGGER.info(f'stream {stream.name} opened')
+
+        try:
+            data_generator = stream.open()
+
+            header = next(data_generator)
+            # insert timestamp label at head position
+            # np.insert does not resize string types of the array
+            header = np.concatenate(([f'{stream.name}_timestamp'], header))
+
+            # TODO: handle errors
+            self._validate_header(header)
+
+            # send header
+            conn.send(header)
+
+            # get first data sample
+            row = next(data_generator)
+
+            # stream timestamp
+            timestamp = time() - self._t_start
+
+            slot[0] = timestamp
+            slot[1:] = row
+
+            # signal event to main thread
+            # TODO: use mp.Event?
+            conn.send('start')
+
+            for row in data_generator:
+
+                while conn.poll():
+                    msg = conn.recv()
+                    if msg == 'stop':
+                        # finally is executed
+                        return
+
+                # stream timestamp
+                timestamp = time() - self._t_start
+
+                slot[0] = timestamp
+                slot[1:] = row
+
+                # if self._stream_loggers[idx].logging:
+                #     self._stream_loggers[idx].feed(series)
+        finally:
+            stream.exec_close_hooks()
+            _LOGGER.info(f'stream {stream.name} closed')
+
+    def close(self) -> None:
+        if not self._running:
+            raise ValueError('Already closed!')
+
+        # stop workin thread
+        self._running = False
+
+        self._worker.join()
+
+        for proc in self._stream_processes:
+            proc.join()
+
+    # def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
+    #     self._stream_loggers[idx].start(path, overwrite)
+
+    # def log_stop_stream(self, idx: int) -> None:
+    #     self._stream_loggers[idx].stop()
 
     def _ipython_display_(self):
         if self._widget_view is None:

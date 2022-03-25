@@ -50,6 +50,13 @@ class Stream:
         else:
             return self._dtype
 
+    @property
+    def ctype(self):
+        if self._dtype is None:
+            raise ValueError('Initialize ctype first by calling the test method.')
+        else:
+            return np.ctypeslib.as_ctypes_type(self._dtype)
+
     def datagen(self, *args, **kwargs) -> Generator:
         if self._datagen:
             return self._datagen(*args, **kwargs)
