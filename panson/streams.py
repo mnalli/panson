@@ -105,7 +105,10 @@ class Stream:
         if print_header:
             print(header)
 
+        timestamps = []
+
         first_row = next(gen)
+        timestamps.append(time.time())
 
         if len(header) == len(first_row):
             print(f'length: {len(first_row)}. dtype: {first_row.dtype}.')
@@ -115,6 +118,8 @@ class Stream:
             )
 
         for i, row in zip(range(test_rows), gen):
+            timestamps.append(time.time())
+
             if len(first_row) != len(row):
                 raise ValueError(f'row #{i+1} has length {len(row)}')
             if first_row.dtype != row.dtype:
@@ -128,6 +133,8 @@ class Stream:
 
         self._length = len(first_row)
         self._dtype = first_row.dtype
+
+        print(f'Around {1 / np.diff(timestamps).mean()} fps')
 
 
 class CsvFifo(Stream):
