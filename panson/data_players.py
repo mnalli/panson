@@ -487,18 +487,6 @@ class _RTDataPlayerBase(_DataPlayerBase):
         if self._video_player:
             self._video_player.stop()
 
-    @staticmethod
-    def _validate_header(header):
-        # TODO: do better
-        for label in header:
-            if not isinstance(label, str):
-                raise ValueError(f"{threading.get_native_id()}: Label {label} isn't a string")
-
-        size = len(header)
-        set_size = len(set(header))
-        if set_size < size:
-            raise ValueError(f"{threading.get_native_id()}: Header has duplicated elements")
-
 
 class RTDataPlayer(_RTDataPlayerBase):
 
@@ -537,7 +525,10 @@ class RTDataPlayer(_RTDataPlayerBase):
             data_generator = self._stream.open()
 
             header = next(data_generator)
-            self._validate_header(header)
+            header = pd.Index(header, dtype=str)
+
+            if header.has_duplicates:
+                raise ValueError(f'header has duplicated values - {header.duplicated()}')
 
             for row in data_generator:
 
@@ -711,13 +702,18 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             data_generator = stream.open()
 
             header = next(data_generator)
-            self._validate_header(header)
+            header = pd.Index(header, dtype=str)
+
+            if header.has_duplicates:
+                raise ValueError(f'stream {stream.name}: header has duplicated values - {header.duplicated()}')
 
             # get first data sample
             row = next(data_generator)
 
             series = pd.Series(row, header)
+
             # add stream timestamp
+            # TODO: does this resize the array?
             series[f'{stream.name}_timestamp'] = time() - self._t_start
 
             self._stream_slots[idx] = series
@@ -830,7 +826,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
             proc = mp.Process(
                 target=self._stream,
-                args=(i, child_conn, slot)
+                args=(self._t_start, self._streams[i], slot, child_conn)
             )
             self._stream_processes.append(proc)
 
@@ -841,15 +837,18 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
         self._worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('sonification thread started')
+        _LOGGER.info('sonification process started')
 
         try:
             # send start bundle
             self._son.s.bundler().add(self._son.start()).send()
 
+            # receive indexes
             headers = [conn.recv() for conn in self._pipes]
+            header = pd.Index([]).append(headers)
 
-            # TODO: merge header and validate?
+            if header.has_duplicates:
+                raise ValueError(f'sonification process: merged header has duplicated values - {header.duplicated()}')
 
             for conn in self._pipes:
                 # read start message from every pipe
@@ -861,39 +860,31 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
             while self._running:
 
-                # copy and store slots in local memory
+                # *copy* and store slots in local memory
                 stream_slots = [
                     np.array(slot, dtype=stream.dtype) for stream, slot in zip(self.streams, self._stream_slots)
                 ]
 
                 # TODO: what to do if streams have different types???
+                # check *casting* argument
+                row = np.concatenate(stream_slots)
 
-                series = [
-                    pd.Series(slot, index=header) for slot, header in zip(stream_slots, headers)
-                ]
-
-                # TODO: do concatenation by hand???
-
-                if i == 1:
-                    # verify integrity only on the first iteration
-                    row = pd.concat(series, verify_integrity=True, copy=False)
-                else:
-                    row = pd.concat(series, copy=False)
+                series = pd.Series(row, header)
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
-                row['timestamp'] = time() - self._t_start
+                series['timestamp'] = time() - self._t_start
 
-                self._son.s.bundler().add(self._son.process(row)).send()
+                self._son.s.bundler().add(self._son.process(series)).send()
 
                 # for timestamp in row[[f'{stream.name}_timestamp' for stream in self._streams]]:
                 #     _LOGGER.debug(f'{row["timestamp"]}:{timestamp - row["timestamp"]}')
 
                 if self._logger.logging:
-                    self._logger.feed(row)
+                    self._logger.feed(series)
 
                 if self._feature_display:
-                    self._feature_display.feed(row)
+                    self._feature_display.feed(series)
 
                 target_time = t0 + i / self._fps
                 i += 1
@@ -911,11 +902,12 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             # send stop message to every process
             for conn in self._pipes:
                 conn.send('stop')
+
             _LOGGER.info('sonification thread ended')
 
-    def _stream(self, idx: int, conn: mp.connection.Connection, slot: mp.Array):
+    @staticmethod
+    def _stream(t_start, stream: Stream, slot: mp.Array, conn: mp.connection.Connection):
 
-        stream = self._streams[idx]
         _LOGGER.info(f'stream {stream.name} opened')
 
         try:
@@ -926,8 +918,10 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             # np.insert does not resize string types of the array
             header = np.concatenate(([f'{stream.name}_timestamp'], header))
 
-            # TODO: handle errors
-            self._validate_header(header)
+            header = pd.Index(header, dtype=str)
+
+            if header.has_duplicates:
+                raise ValueError(f'stream {stream.name}: header has duplicated values - {header.duplicated()}')
 
             # send header
             conn.send(header)
@@ -936,7 +930,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             row = next(data_generator)
 
             # stream timestamp
-            timestamp = time() - self._t_start
+            timestamp = time() - t_start
 
             slot[0] = timestamp
             slot[1:] = row
@@ -953,7 +947,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                         return
 
                 # stream timestamp
-                timestamp = time() - self._t_start
+                timestamp = time() - t_start
 
                 slot[0] = timestamp
                 slot[1:] = row
@@ -961,6 +955,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                 # if self._stream_loggers[idx].logging:
                 #     self._stream_loggers[idx].feed(series)
         finally:
+            conn.send('exit')
             stream.exec_close_hooks()
             _LOGGER.info(f'stream {stream.name} closed')
 
