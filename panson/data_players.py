@@ -525,10 +525,10 @@ class RTDataPlayer(_RTDataPlayerBase):
             data_generator = self._stream.open()
 
             header = next(data_generator)
-            header = pd.Index(header, dtype=str)
+            header = pd.Index(header)
 
             if header.has_duplicates:
-                raise ValueError(f'header has duplicated values - {header.duplicated()}')
+                raise ValueError(f'header has duplicated values - {header[header.duplicated()].values}')
 
             for row in data_generator:
 
@@ -702,10 +702,12 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             data_generator = stream.open()
 
             header = next(data_generator)
-            header = pd.Index(header, dtype=str)
+            header = pd.Index(header)
 
             if header.has_duplicates:
-                raise ValueError(f'stream {stream.name}: header has duplicated values - {header.duplicated()}')
+                raise ValueError(
+                    f'stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}'
+                )
 
             # get first data sample
             row = next(data_generator)
@@ -848,7 +850,9 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             header = pd.Index([]).append(headers)
 
             if header.has_duplicates:
-                raise ValueError(f'sonification process: merged header has duplicated values - {header.duplicated()}')
+                raise ValueError(
+                    f'sonification process: merged header has duplicated values - {header[header.duplicated()].values}'
+                )
 
             for conn in self._pipes:
                 # read start message from every pipe
@@ -859,6 +863,15 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             t0 = time()
 
             while self._running:
+
+                for conn in self._pipes:
+                    while conn.poll():
+                        msg = conn.recv()
+
+                        # child exited
+                        if msg == 'exit':
+                            # finally is executed
+                            return
 
                 # *copy* and store slots in local memory
                 stream_slots = [
@@ -897,6 +910,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                     _LOGGER.warning(f'Thread {-waiting_time} s late')
 
         finally:
+            self._running = False
             # send stop bundle
             self._son.s.bundler().add(self._son.stop()).send()
             # send stop message to every process
@@ -918,10 +932,13 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             # np.insert does not resize string types of the array
             header = np.concatenate(([f'{stream.name}_timestamp'], header))
 
-            header = pd.Index(header, dtype=str)
+            # we can use object as dtype as long as the header is shared through message passing
+            header = pd.Index(header)
 
             if header.has_duplicates:
-                raise ValueError(f'stream {stream.name}: header has duplicated values - {header.duplicated()}')
+                raise ValueError(
+                    f'stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}'
+                )
 
             # send header
             conn.send(header)
@@ -942,6 +959,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
                 while conn.poll():
                     msg = conn.recv()
+
                     if msg == 'stop':
                         # finally is executed
                         return
@@ -955,6 +973,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                 # if self._stream_loggers[idx].logging:
                 #     self._stream_loggers[idx].feed(series)
         finally:
+            # if an exception occurs, it will be printed to stderr by default
             conn.send('exit')
             stream.exec_close_hooks()
             _LOGGER.info(f'stream {stream.name} closed')
