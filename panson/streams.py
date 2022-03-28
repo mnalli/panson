@@ -9,18 +9,22 @@ from typing import Generator, final
 from typing import Any, Callable, Tuple
 
 import logging
+
+import pandas as pd
+
 _LOGGER = logging.getLogger(__name__)
 
 
 class Stream:
 
-    def __init__(self, name: str, datagen=None, args=(), kwargs=None):
+    def __init__(self, name: str, datagen=None, preprocessing=None, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
 
         self.name = name
 
         self._datagen = datagen
+        self._preprocessing = preprocessing
 
         self._args = args
         self._kwargs = kwargs
@@ -59,6 +63,10 @@ class Stream:
             return self._datagen(*args, **kwargs)
 
         raise ValueError("Define datagen constructor argument or override datagen method.")
+
+    def preprocess(self, data: pd.Series) -> None:
+        if self._preprocessing:
+            self._preprocessing(data)
 
     @final
     def open(self) -> Generator:
