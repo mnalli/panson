@@ -52,10 +52,7 @@ class Stream:
 
     @property
     def ctype(self):
-        if self._dtype is None:
-            raise ValueError('Initialize ctype first by calling the test method.')
-        else:
-            return np.ctypeslib.as_ctypes_type(self._dtype)
+        return np.ctypeslib.as_ctypes_type(self.dtype)
 
     def datagen(self, *args, **kwargs) -> Generator:
         if self._datagen:
@@ -111,6 +108,8 @@ class Stream:
         timestamps.append(time.time())
 
         if len(header) == len(first_row):
+            if first_row.dtype == object:
+                raise ValueError('Data dtype cannot be object.')
             print(f'length: {len(first_row)}. dtype: {first_row.dtype}.')
         else:
             raise ValueError(
