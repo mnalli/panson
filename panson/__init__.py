@@ -16,6 +16,7 @@ from .widget_parameters import (
 from .data_players import DataPlayer, RTDataPlayer, RTDataPlayerMulti, RTDataPlayerMultiParallel
 from .live_features import LiveFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
+from .streams import Stream
 
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMulti', 'RTDataPlayerMultiParallel',
     'LiveFeatureDisplay',
     'VideoPlayer', 'RTVideoPlayer',
+    'Stream'
 ]
 
 
