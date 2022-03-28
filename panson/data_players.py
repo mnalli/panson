@@ -878,9 +878,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                     np.array(slot, dtype=stream.dtype) for stream, slot in zip(self.streams, self._stream_slots)
                 ]
 
-                # TODO: what to do if streams have different types???
-                # check *casting* argument
-                row = np.concatenate(stream_slots)
+                row = np.concatenate(stream_slots, casting='same_kind')
 
                 series = pd.Series(row, header)
 
