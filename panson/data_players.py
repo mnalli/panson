@@ -19,7 +19,7 @@ from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
 
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Callable
 
 from IPython.display import display
 
@@ -581,7 +581,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             sonification: Union[Sonification, GroupSonification],
             fps=None,
             feature_display: LiveFeatureDisplay = None,
-            video_player: RTVideoPlayer = None
+            video_player: RTVideoPlayer = None,
+            preprocessing: Callable[[pd.Series], None] = None
     ):
         super().__init__(sonification, feature_display, video_player)
 
@@ -594,6 +595,8 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             # select the highest of stream frequencies
             fps = max([stream.fps for stream in streams])
         self._fps = fps
+
+        self._preprocessing = preprocessing
 
         print(f'@ {fps} fps')
 
@@ -668,7 +671,11 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
+                # TODO: check for overwriting
                 row['timestamp'] = time() - self._t_start
+
+                # preprocess row
+                self._preprocessing(row)
 
                 self._son.s.bundler().add(self._son.process(row)).send()
 
@@ -780,7 +787,8 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             sonification: Union[Sonification, GroupSonification],
             fps=None,
             feature_display: LiveFeatureDisplay = None,
-            video_player: RTVideoPlayer = None
+            video_player: RTVideoPlayer = None,
+            preprocessing: Callable[[pd.Series], None] = None
     ):
         super().__init__(sonification, feature_display, video_player)
 
@@ -795,6 +803,8 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
         self._fps = fps
 
         print(f'@ {fps} fps')
+
+        self._preprocessing = preprocessing
 
         # processes that fetch data from streams
         self._stream_processes = None
@@ -895,6 +905,9 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
                 series['timestamp'] = time() - self._t_start
+
+                # preprocess row
+                self._preprocessing(series)
 
                 self._son.s.bundler().add(self._son.process(series)).send()
 
