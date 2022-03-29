@@ -62,6 +62,12 @@ class Stream:
         else:
             return self._fps
 
+    @fps.setter
+    def fps(self, value):
+        if value <= 0:
+            raise ValueError(f"fps cannot be {value}")
+        self._fps = value
+
     @property
     def ctype(self):
         return np.ctypeslib.as_ctypes_type(self.dtype)
@@ -108,7 +114,7 @@ class Stream:
         _LOGGER.debug(f"stream {self.name}: execute close hooks")
         self._exec_hooks(self._close_hooks)
 
-    def test(self, test_rows=10, print_header=False) -> 'Stream':
+    def test(self, test_rows=10, print_header=False, dryrun=False) -> 'Stream':
         self.exec_open_hooks()
 
         gen = self.open()
@@ -142,17 +148,20 @@ class Stream:
 
         self.exec_close_hooks()
 
+        length = len(first_row)
+        dtype = first_row.dtype
+        fps = 1 / np.diff(timestamps).mean()
+
         print('Set info on data samples:')
-        print(f'    Sample length: {len(first_row)}')
-        print(f'    Sample dtype: {first_row.dtype} ({np.ctypeslib.as_ctypes_type(first_row.dtype)} as ctype)')
+        print(f'    Sample length: {length}')
+        print(f'    Sample dtype: {dtype} ({np.ctypeslib.as_ctypes_type(first_row.dtype)} as ctype)')
+        print(f'Around {fps} fps')
 
-        self._length = len(first_row)
-        self._dtype = first_row.dtype
-
-        # mean fps
-        self._fps = 1 / np.diff(timestamps).mean()
-
-        print(f'Around {self._fps} fps')
+        if not dryrun:
+            self._length = len(first_row)
+            self._dtype = first_row.dtype
+            # mean fps
+            self._fps = fps
 
         return self
 
