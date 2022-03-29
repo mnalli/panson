@@ -577,20 +577,25 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def __init__(
             self,
-            fps,
             streams: list[Stream],
             sonification: Union[Sonification, GroupSonification],
+            fps=None,
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
         super().__init__(sonification, feature_display, video_player)
 
-        self._fps = fps
-
         if len(streams) == 0:
             raise ValueError("Empty list of streams.")
 
         self._streams = streams
+
+        if fps is None:
+            # select the highest of stream frequencies
+            fps = max([stream.fps for stream in streams])
+        self._fps = fps
+
+        print(f'@ {fps} fps')
 
         # threads that fetch data from the streams
         self._stream_workers = None
@@ -771,20 +776,25 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
     def __init__(
             self,
-            fps,
             streams: list[Stream],
             sonification: Union[Sonification, GroupSonification],
+            fps=None,
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
         super().__init__(sonification, feature_display, video_player)
 
-        self._fps = fps
-
         if len(streams) == 0:
             raise ValueError("Empty list of streams.")
 
         self._streams = streams
+
+        if fps is None:
+            # select the highest of stream frequencies
+            fps = max([stream.fps for stream in streams])
+        self._fps = fps
+
+        print(f'@ {fps} fps')
 
         # processes that fetch data from streams
         self._stream_processes = None

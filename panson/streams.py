@@ -39,6 +39,7 @@ class Stream:
         # set by test function
         self._length = None
         self._dtype = None
+        self._fps = None
 
     @property
     def length(self):
@@ -53,6 +54,13 @@ class Stream:
             raise ValueError('Initialize dtype first by calling the test method.')
         else:
             return self._dtype
+
+    @property
+    def fps(self):
+        if self._fps is None:
+            raise ValueError('Initialize fps first by calling the test method.')
+        else:
+            return self._fps
 
     @property
     def ctype(self):
@@ -72,11 +80,11 @@ class Stream:
     def open(self) -> Generator:
         return self.datagen(*self._args, **self._kwargs)
 
-    def add_open_hook(self, hook: Callable[..., None], *args, **kwargs):
+    def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
         self._open_hooks.append((hook, args, kwargs))
         return self
 
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs):
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
         self._close_hooks.append((hook, args, kwargs))
         return self
 
@@ -100,7 +108,7 @@ class Stream:
         _LOGGER.debug(f"stream {self.name}: execute close hooks")
         self._exec_hooks(self._close_hooks)
 
-    def test(self, test_rows=10, print_header=False):
+    def test(self, test_rows=10, print_header=False) -> 'Stream':
         self.exec_open_hooks()
 
         gen = self.open()
@@ -141,7 +149,12 @@ class Stream:
         self._length = len(first_row)
         self._dtype = first_row.dtype
 
-        print(f'Around {1 / np.diff(timestamps).mean()} fps')
+        # mean fps
+        self._fps = 1 / np.diff(timestamps).mean()
+
+        print(f'Around {self._fps} fps')
+
+        return self
 
 
 class CsvFifo(Stream):
