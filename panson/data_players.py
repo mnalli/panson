@@ -30,6 +30,8 @@ import copy
 
 import multiprocessing as mp
 
+import weakref
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -392,7 +394,7 @@ class DataPlayer(_DataPlayerBase):
                 max_idx = 0
             else:
                 max_idx = self._df.index[-1]
-            self._widget_view = DataPlayerWidgetView(self, max_idx)
+            self._widget_view = DataPlayerWidgetView(weakref.proxy(self), max_idx)
 
         display(self._widget_view)
 
@@ -568,7 +570,7 @@ class RTDataPlayer(_RTDataPlayerBase):
 
     def _ipython_display_(self):
         if self._widget_view is None:
-            self._widget_view = RTDataPlayerWidgetView(self)
+            self._widget_view = RTDataPlayerWidgetView(weakref.proxy(self))
 
         display(self._widget_view)
 
@@ -774,7 +776,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def _ipython_display_(self):
         if self._widget_view is None:
-            self._widget_view = RTDataPlayerMultiWidgetView(self)
+            self._widget_view = RTDataPlayerMultiWidgetView(weakref.proxy(self))
 
         display(self._widget_view)
 
@@ -1019,6 +1021,6 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
     def _ipython_display_(self):
         if self._widget_view is None:
-            self._widget_view = RTDataPlayerMultiWidgetView(self)
+            self._widget_view = RTDataPlayerMultiWidgetView(weakref.proxy(self))
 
         display(self._widget_view)
