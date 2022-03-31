@@ -86,7 +86,7 @@ class Stream:
 
         raise ValueError("Define datagen constructor argument or override datagen method.")
 
-    def _datagen_wrapper(self, *args, **kwargs) -> Generator:
+    def _datagen_preprocessor_wrapper(self, *args, **kwargs) -> Generator:
         gen = self.datagen(*args, **kwargs)
 
         header = next(gen)
@@ -116,7 +116,7 @@ class Stream:
         else:
             # create fresh preprocessor instance
             self._preprocessor_instance = self._preprocessor()
-            return self._datagen_wrapper(*self._args, **self._kwargs)
+            return self._datagen_preprocessor_wrapper(*self._args, **self._kwargs)
 
     def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
         self._open_hooks.append((hook, args, kwargs))
