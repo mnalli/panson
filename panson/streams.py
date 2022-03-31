@@ -1,30 +1,38 @@
+import numpy as np
+import pandas as pd
+
+from typing import Generator, final, Any, Callable, Tuple, Type
+
+from .preprocessors import Preprocessor
+
 import csv
 import time
 import math
 
-import numpy as np
-
-from typing import Generator, final
-
-from typing import Any, Callable, Tuple
-
 import logging
-
-import pandas as pd
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class Stream:
 
-    def __init__(self, name: str, datagen=None, preprocessing=None, args=(), kwargs=None):
+    def __init__(
+            self,
+            name: str,
+            datagen=None,
+            preprocessor: Type[Preprocessor] = None,
+            args=(),
+            kwargs=None
+    ):
         if kwargs is None:
             kwargs = {}
 
         self.name = name
 
         self._datagen = datagen
-        self._preprocessing = preprocessing
+
+        self._preprocessor = preprocessor
+        self._preprocessor_instance = None
 
         self._args = args
         self._kwargs = kwargs
@@ -78,13 +86,37 @@ class Stream:
 
         raise ValueError("Define datagen constructor argument or override datagen method.")
 
-    def preprocess(self, data: pd.Series) -> None:
-        if self._preprocessing:
-            self._preprocessing(data)
+    def _datagen_wrapper(self, *args, **kwargs) -> Generator:
+        gen = self.datagen(*args, **kwargs)
+
+        header = next(gen)
+        # first row
+        row = next(gen)
+
+        series = pd.Series(row, header, name=0)
+
+        self._preprocessor_instance.preprocess(series)
+
+        header = series.index
+        # array with valid numpy type
+        row = series.values
+
+        yield header
+        yield row
+
+        for i, row in enumerate(gen, start=1):
+            series = pd.Series(row, header, name=i)
+            self._preprocessor_instance.preprocess(series)
+            yield series.values
 
     @final
     def open(self) -> Generator:
-        return self.datagen(*self._args, **self._kwargs)
+        if self._preprocessor is None:
+            return self.datagen(*self._args, **self._kwargs)
+        else:
+            # create fresh preprocessor instance
+            self._preprocessor_instance = self._preprocessor()
+            return self._datagen_wrapper(*self._args, **self._kwargs)
 
     def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
         self._open_hooks.append((hook, args, kwargs))
@@ -150,12 +182,13 @@ class Stream:
 
         length = len(first_row)
         dtype = first_row.dtype
+        # mean fps
         fps = 1 / np.diff(timestamps).mean()
 
         print('Set info on data samples:')
         print(f'    Sample length: {length}')
-        print(f'    Sample dtype: {dtype} ({np.ctypeslib.as_ctypes_type(first_row.dtype)} as ctype)')
-        print(f'Around {fps} fps')
+        print(f'    Sample dtype: {dtype} ({np.ctypeslib.as_ctypes_type(dtype)} as ctype)')
+        print(f'    Around {fps} fps')
 
         if not dryrun:
             self._length = len(first_row)

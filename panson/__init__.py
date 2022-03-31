@@ -17,6 +17,7 @@ from .data_players import DataPlayer, RTDataPlayer, RTDataPlayerMulti, RTDataPla
 from .live_features import LiveFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
 from .streams import Stream
+from .preprocessors import Preprocessor
 
 
 __all__ = [
@@ -29,7 +30,8 @@ __all__ = [
     'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMulti', 'RTDataPlayerMultiParallel',
     'LiveFeatureDisplay',
     'VideoPlayer', 'RTVideoPlayer',
-    'Stream'
+    'Stream',
+    'Preprocessor'
 ]
 
 

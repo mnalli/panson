@@ -19,7 +19,9 @@ from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
 
-from typing import Union, List, Dict, Callable
+from typing import Union, List, Dict, Type
+
+from .preprocessors import Preprocessor
 
 from IPython.display import display
 
@@ -584,7 +586,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
             fps=None,
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
-            preprocessing: Callable[[pd.Series], None] = None
+            preprocessor: Type[Preprocessor] = None,
     ):
         super().__init__(sonification, feature_display, video_player)
 
@@ -594,11 +596,12 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         self._streams = streams
 
         if fps is None:
-            # select the highest of stream frequencies
+            # select the highest of stream frequency
             fps = max([stream.fps for stream in streams])
         self._fps = fps
 
-        self._preprocessing = preprocessing
+        self._preprocessor = preprocessor
+        self._preprocessor_instance = None
 
         print(f'@ {fps} fps')
 
@@ -622,6 +625,10 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
 
     def listen(self) -> None:
         super().listen()
+
+        if self._preprocessor:
+            # build processor
+            self._preprocessor_instance = self._preprocessor()
 
         # execute all opening hooks sequentially, not to mix their output
         for stream in self._streams:
@@ -676,8 +683,9 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
                 # TODO: check for overwriting
                 row['timestamp'] = time() - self._t_start
 
-                # preprocess row
-                self._preprocessing(row)
+                if self._preprocessor:
+                    # preprocess row
+                    self._preprocessor_instance.preprocess(row)
 
                 self._son.s.bundler().add(self._son.process(row)).send()
 
@@ -790,7 +798,7 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
             fps=None,
             feature_display: LiveFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
-            preprocessing: Callable[[pd.Series], None] = None
+            preprocessor: Type[Preprocessor] = None,
     ):
         super().__init__(sonification, feature_display, video_player)
 
@@ -806,7 +814,8 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
         print(f'@ {fps} fps')
 
-        self._preprocessing = preprocessing
+        self._preprocessor = preprocessor
+        self._preprocessor_instance = None
 
         # processes that fetch data from streams
         self._stream_processes = None
@@ -827,6 +836,10 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
 
     def listen(self) -> None:
         super().listen()
+
+        if self._preprocessor:
+            # build new preprocessor
+            self._preprocessor_instance = self._preprocessor()
 
         # execute all opening hooks sequentially, not to mix their output
         for stream in self._streams:
@@ -908,8 +921,9 @@ class RTDataPlayerMultiParallel(_RTDataPlayerBase):
                 # the shared start time is used as reference
                 series['timestamp'] = time() - self._t_start
 
-                # preprocess row
-                self._preprocessing(series)
+                if self._preprocessor:
+                    # preprocess row
+                    self._preprocessor_instance.preprocess(row)
 
                 self._son.s.bundler().add(self._son.process(series)).send()
 
