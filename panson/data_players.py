@@ -577,7 +577,7 @@ class RTDataPlayer(_RTDataPlayerBase):
         display(self._widget_view)
 
 
-class RTDataPlayerMulti(_RTDataPlayerBase):
+class RTDataPlayerMT(_RTDataPlayerBase):
 
     def __init__(
             self,
@@ -789,7 +789,7 @@ class RTDataPlayerMulti(_RTDataPlayerBase):
         display(self._widget_view)
 
 
-class RTDataPlayerMultiParallel(_RTDataPlayerBase):
+class RTDataPlayerMP(_RTDataPlayerBase):
 
     def __init__(
             self,

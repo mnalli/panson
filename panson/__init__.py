@@ -13,7 +13,7 @@ from .widget_parameters import (
     DropdownParameter, SelectParameter, ComboboxParameter,
     ToggleButtonParameter, CheckboxParameter
 )
-from .data_players import DataPlayer, RTDataPlayer, RTDataPlayerMulti, RTDataPlayerMultiParallel
+from .data_players import DataPlayer, RTDataPlayer, RTDataPlayerMT, RTDataPlayerMP
 from .live_features import LiveFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
 from .streams import Stream
@@ -27,7 +27,7 @@ __all__ = [
     'IntRangeSliderParameter', 'FloatRangeSliderParameter',
     'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
     'ToggleButtonParameter', 'CheckboxParameter',
-    'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMulti', 'RTDataPlayerMultiParallel',
+    'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMT', 'RTDataPlayerMP',
     'LiveFeatureDisplay',
     'VideoPlayer', 'RTVideoPlayer',
     'Stream',
