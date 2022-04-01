@@ -46,6 +46,15 @@ class Parameter:
 
 
 class Sonification(ABC):
+    """Subclasses of Sonification will define the sonification behaviour.
+
+    This class handles parameters updates in such a way that parameters are not
+    updated in the middle of the sonification computation.
+
+    If evaluated in a jupyter notebook, a Sonification object will be rendered
+    as an ipywidget that allow the user to graphically set and update the
+    parameters of the sonification.
+    """
 
     __slots__ = '_lock', '__s'
 
@@ -64,7 +73,12 @@ class Sonification(ABC):
         # user-defined initialization
         self.init_parameters(*args, **kwargs)
 
+        # init_server can have side effects (such as updating the client-side
+        # supercollider allocators). Accessing the resulting bundle (without any
+        # side effect) will be needed when doing NRT sonification or in
+        # GroupSonification
         self.init_bundle = self.init_server()
+        # send init bundle to server
         self.__s.bundler().add(self.init_bundle).send()
 
     @property
@@ -133,12 +147,10 @@ class Sonification(ABC):
     def _process(self, row: Series) -> Bundler:
         """Process row and return OSC messages to update the sonification.
 
-        The data row can contain information about the timing of the data, but
-        the user of the framework should ignore it and leave the handling of
-        timing to the framework.
-        For this reason, the implementation of this method should return a
-        list containing OSCMessage objects to be used for updating the
-        sonification. The order of the list should not be considered.
+        If the user specifies timestamps for the bundler object returned, the
+        timestamps will be recalculated with respect to the execution time
+        calculated by the framework. Nevertheless, the user is encouraged not to
+        do so and leave the framework handle everything that concerns timing.
 
         :param row: pandas Series
             Data row to be sonified.
@@ -195,6 +207,10 @@ def bundle(f):
 
 
 class GroupSonification:
+    """This class allows the user to group different sonification objects.
+
+    This will make them behave as if they were a unique sonification object.
+    """
 
     def __init__(self, sonifications):
         for son in sonifications:
@@ -216,12 +232,6 @@ class GroupSonification:
         for son in sonifications:
             self.init_bundle.add(son.init_bundle)
 
-    def init(self) -> Bundler:
-        bundler = Bundler()
-        for son in self.sonifications:
-            bundler.add(son.initialize())
-        return bundler
-
     def start(self) -> Bundler:
         bundler = Bundler()
         for son in self.sonifications:
@@ -239,6 +249,10 @@ class GroupSonification:
         for son in self.sonifications:
             bundler.add(son.process(row))
         return bundler
+
+    def free(self) -> None:
+        for son in self.sonifications:
+            son.free()
 
     def _ipython_display_(self):
         for son in self.sonifications:
