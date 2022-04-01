@@ -342,7 +342,8 @@ class DataPlayer(_DataPlayerBase):
                 if self._fps:
                     timestamp = i / self._fps / self.rate
                 else:
-                    timestamp = row[self._time_key] / self.rate
+                    start_timestamp = self._df.iloc[0][self._time_key]
+                    timestamp = row[self._time_key] - start_timestamp / self.rate
                 bundler.add(timestamp, clone.process(row))
 
             # stop sonification on last message
@@ -382,6 +383,7 @@ class DataPlayer(_DataPlayerBase):
 
         return Score.record_nrt(
             score,
+            # TODO: how to make it on Windows?
             "/tmp/score.osc",   # throw away score file
             out_file,
             sample_rate=sample_rate,
