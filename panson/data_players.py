@@ -860,7 +860,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
 
             # +1 is for the timestamp
             # TODO: timestamp is always a float
-            slot = mp.Array(stream.ctype, stream.length + 1)
+            slot = mp.Array(stream.ctype, stream.sample_size + 1)
             self._stream_slots.append(slot)
 
             proc = mp.Process(
