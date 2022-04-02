@@ -1,4 +1,8 @@
 """This module adds the Jupyter Magics"""
+
+# TODO: this does not really belong to the panson project...
+# should we move it out in a separate and separately installable project?
+
 import tempfile
 import os
 import subprocess
@@ -20,7 +24,11 @@ class PansonMagics(Magics):
 
     @cell_magic
     def editor(self, line="", cell=None):
-        """Edit cell using the default text editor."""
+        """Edit cell using the default text editor.
+
+        This is similar to the %edit ipython magic, but adapted to work in a
+        jupyter notebook.
+        """
 
         # print(line, cell)
 
