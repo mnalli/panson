@@ -212,6 +212,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
         self.stream_log_boxes = []
 
         for stream in player.streams:
+            label = widgets.Label(stream.name)
             log = widgets.ToggleButton(
                 value=False,
                 description='Log',
@@ -225,7 +226,7 @@ class RTDataPlayerMultiWidgetView(RTDataPlayerWidgetView):
                 value=False,
                 description='Overwrite'
             )
-            self.stream_log_boxes.append(HBox([log, log_output, log_overwrite]))
+            self.stream_log_boxes.append(HBox([log, log_output, log_overwrite, label]))
 
         for i, log_box in enumerate(self.stream_log_boxes):
             log_box.children[0].observe(self._toggle_log_stream_factory(i), 'value')
