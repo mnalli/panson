@@ -14,7 +14,7 @@ from threading import Thread
 from .sonification import Sonification, GroupSonification
 from .streams import Stream
 
-from .live_features import LiveFeatureDisplay
+from .feature_displays import RTFeatureDisplay
 from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
@@ -45,7 +45,7 @@ class _DataPlayerBase:
     def __init__(
             self,
             sonification: Union[Sonification, GroupSonification],
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: Union[VideoPlayer, RTVideoPlayer] = None
     ):
         self._son = sonification
@@ -100,7 +100,7 @@ class DataPlayer(_DataPlayerBase):
     def __init__(
             self,
             sonification: Union[Sonification, GroupSonification],
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: VideoPlayer = None
     ):
         super().__init__(sonification, feature_display, video_player)
@@ -452,7 +452,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
     def __init__(
             self,
             sonification: Union[Sonification, GroupSonification],
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None
     ):
         super().__init__(sonification, feature_display, video_player)
@@ -500,7 +500,7 @@ class RTDataPlayer(_RTDataPlayerBase):
             self,
             stream: Stream,
             sonification: Union[Sonification, GroupSonification],
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
             timestamp: bool = False
     ):
@@ -586,7 +586,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             streams: list[Stream],
             sonification: Union[Sonification, GroupSonification],
             fps=None,
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
             preprocessor: Type[Preprocessor] = None,
     ):
@@ -798,7 +798,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             streams: list[Stream],
             sonification: Union[Sonification, GroupSonification],
             fps=None,
-            feature_display: LiveFeatureDisplay = None,
+            feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
             preprocessor: Type[Preprocessor] = None,
     ):
