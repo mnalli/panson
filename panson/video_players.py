@@ -1,3 +1,11 @@
+"""This module contains classes that allow to playback video frames.
+
+These video player classes effectively bypass the GIL, as computations are
+performed in other processes and commands are sent through pipes.
+
+The classes are meant to be used together with the data players.
+"""
+
 import csv
 import time
 
@@ -19,18 +27,20 @@ import pims
 
 import traceback
 
-# TODO: refactor video players inheriting from QMainWindow
-# TODO: evaluate weather to use mp.Manager to implement the video players
-
 
 class Communicate(QObject):
 
     updateImg = pyqtSignal(np.ndarray)
 
-# TODO: implement playback logic in VideoPlayer
 
+# TODO: refactor video players inheriting from QMainWindow
+# TODO: refactor to have consistent communication between client and server classes
+# TODO: bring this component out of the framework in an independent project?
 
 class VideoPlayerServer:
+    """This class encapsulate the logic of the behaviour of the video player."""
+
+    # TODO: implement playback logic in VideoPlayer
 
     def __init__(
             self,
@@ -40,6 +50,16 @@ class VideoPlayerServer:
             fps=None,
             on_top: bool = True
     ):
+        """
+        :param conn: pipe end used for communication
+        :param file_path: video file path
+        :param frame_times_path: optional file containing frame timestamps
+            if frame_times_path and fps are both None, the frame times file will
+            be considered at file_path + '.csv'
+        :param fps: static fps value
+            considered if frame times is not available
+        :param on_top: wether to display the player window as "always on top"
+        """
         # pipe end
         self._conn = conn
 
@@ -118,9 +138,16 @@ class VideoPlayerServer:
         self._win.show()
 
     def _update_img(self, img):
+        """Update displayed image.
+
+        The image must be updated only in the thread where is was originally
+        created. For this reason this method is only called when triggered by
+        an updateImg signal.
+        """
         self._img.setImage(img)
 
     def start(self):
+        """Start reception of commands."""
         self._running = True
         self._receiver_thread.start()
 
@@ -185,6 +212,7 @@ class VideoPlayerServer:
 
 
 class VideoPlayer:
+    """This class is a proxy for the VideoPlayerServer class."""
 
     def __init__(
             self,
@@ -193,7 +221,15 @@ class VideoPlayer:
             fps=None,
             on_top: bool = True
     ):
-
+        """
+        :param file_path: video file
+        :param frame_times_path: optional file containing frame timestamps
+            if frame_times_path and fps are both None, the frame times file will
+            be considered at file_path + '.csv'
+        :param fps: static fps value
+            considered if frame times is not available
+        :param on_top: wether to display the player window as "always on top"
+        """
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
@@ -205,6 +241,7 @@ class VideoPlayer:
 
     @staticmethod
     def _server_main(*args):
+        """Process function"""
         vp = VideoPlayerServer(*args)
         # start threads
         vp.start()
@@ -212,12 +249,15 @@ class VideoPlayer:
         sys.exit(vp.app.exec())
 
     def seek(self, idx: int):
+        """Display frame of the specified index."""
         self._conn.send(('seek', idx))
 
     def seek_time(self, t: float):
+        """Display frame that is closer to the specified time (seconds)."""
         self._conn.send(('seek_time', t))
 
     def quit(self):
+        """Quit player and terminate process."""
         self._conn.send(('quit',))
         self._conn.close()
 
@@ -227,6 +267,10 @@ class VideoPlayer:
 
 
 class RTVideoPlayerServer:
+    """This class encapsulate the logic of the behaviour of the video player.
+
+    It will take video frames from a device and display them in a window.
+    """
 
     def __init__(
             self,
@@ -238,6 +282,18 @@ class RTVideoPlayerServer:
             enumerate_records: bool = True,
             on_top: bool = True
     ):
+        """
+        :param conn: pipe end used for communication
+        :param device: number of the device to be opened
+        :param width: desired width resolution
+            if not available, a valid value will be set
+        :param height: desired height resolution
+            if not available, a valid value will be set
+        :param fps: desired frame rate
+            if not available, a valid value will be set
+        :param enumerate_records: auto enumeration of recording files
+        :param on_top: wether to display the player window as "always on top"
+        """
         # pipe end
         self._conn = conn
 
@@ -403,10 +459,16 @@ class RTVideoPlayerServer:
         self._enumerate_records = val
 
     def record(self, t_start):
+        """Start recorder
+
+        :param t_start: reference timestamp
+            used to synchronize logs and recordings
+        """
         self._start_recording(t_start)
         self._recording = True
 
     def stop(self):
+        """Stop recorder."""
         self._stop_recording()
         # cancel recording - will let thread run come to an end
         self._recording = False
@@ -417,6 +479,7 @@ class RTVideoPlayerServer:
 
 
 class RTVideoPlayer:
+    """This class is a proxy for the RTVideoPlayerServer class."""
 
     def __init__(
             self,
@@ -427,7 +490,17 @@ class RTVideoPlayer:
             enumerate_records: bool = True,
             on_top: bool = True
     ):
-
+        """
+        :param device: number of the device to be opened
+        :param width: desired width resolution
+            if not available, a valid value will be set
+        :param height: desired height resolution
+            if not available, a valid value will be set
+        :param fps: desired frame rate
+            if not available, a valid value will be set
+        :param enumerate_records: auto enumeration of recording files
+        :param on_top: wether to display the player window as "always on top"
+        """
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
@@ -439,6 +512,7 @@ class RTVideoPlayer:
 
     @staticmethod
     def _server_main(*args):
+        """Process function"""
         vp = RTVideoPlayerServer(*args)
         # start threads
         vp.start()
@@ -446,18 +520,26 @@ class RTVideoPlayer:
         sys.exit(vp.app.exec())
 
     def set_auto_enum_files(self, val: bool):
+        """Enable or disable auto enumeration of recording files."""
         self._conn.send(('autoenum', {val}))
 
     def set_filename(self, filename: str):
+        """Set file name for recordings."""
         self._conn.send(('filename', filename))
 
     def record(self, t_start):
+        """Start recorder.
+
+        :param t_start: reference timestamp
+            used to synchronize logs and recordings
+        """
         self._conn.send(('record', t_start))
 
     def stop(self):
         self._conn.send(('stop',))
 
     def quit(self):
+        """Quit player and terminate process."""
         self._conn.send(('quit',))
         self._conn.close()
 
