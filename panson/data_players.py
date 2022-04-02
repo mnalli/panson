@@ -19,7 +19,7 @@ from .video_players import VideoPlayer, RTVideoPlayer
 
 from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
 
-from typing import Union, List, Dict, Type
+from typing import Union, List, Dict, Type, Sequence
 
 from .preprocessors import Preprocessor
 
@@ -41,6 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class _DataPlayerBase:
+    """Base class for all data players."""
 
     def __init__(
             self,
@@ -96,6 +97,7 @@ class _DataPlayerBase:
 
 
 class DataPlayer(_DataPlayerBase):
+    """Data player for pre-recorded data."""
 
     def __init__(
             self,
@@ -103,13 +105,18 @@ class DataPlayer(_DataPlayerBase):
             feature_display: RTFeatureDisplay = None,
             video_player: VideoPlayer = None
     ):
+        """
+        :param sonification: sonification to use
+        :param feature_display
+        :param video_player:
+        """
         super().__init__(sonification, feature_display, video_player)
 
         # playback rate
         self._rate = 1
 
         # load data
-        self._df = self._fps = self._time_key = None
+        self._df = self._fps = self._time_label = None
         # index of the current data point to play
         self._ptr = 0
 
@@ -140,8 +147,16 @@ class DataPlayer(_DataPlayerBase):
             self,
             data: Union[str, pd.DataFrame],
             fps: Union[int, float] = None,
-            time_key: str = 'timestamp'
+            time_label: str = 'timestamp'
     ) -> 'DataPlayer':
+        """Load data into the data player.
+
+        :param data: path to csv data or DataFrame object
+        :param fps: static frame rate of the data
+            by default, the data player will look for timestamps of the data
+        :param time_label: label used to lookup timestamps in data
+        :return:
+        """
         if self._running:
             raise ValueError("Cannot load data while playing.")
 
@@ -161,14 +176,14 @@ class DataPlayer(_DataPlayerBase):
         self._fps = fps
         self._ptr = 0
 
-        if type(time_key) != str:
+        if type(time_label) != str:
             raise ValueError(
-                f"time_key cannot be a {type(time_key)}: must be string.")
+                f"time_key cannot be a {type(time_label)}: must be string.")
 
         if fps is None:
-            self._time_key = time_key
+            self._time_label = time_label
         else:
-            self._time_key = None
+            self._time_label = None
 
         return self
 
@@ -179,6 +194,7 @@ class DataPlayer(_DataPlayerBase):
         return df
 
     def play(self):
+        """Start playback."""
         if self._running:
             raise ValueError("Already playing!")
 
@@ -186,6 +202,7 @@ class DataPlayer(_DataPlayerBase):
         self._worker.start()
 
     def _play(self):
+        """Player thread."""
         assert self.rate != 0, "rate == 0"
 
         _LOGGER.info('player thread started')
@@ -200,7 +217,7 @@ class DataPlayer(_DataPlayerBase):
         t0 = time()
 
         if self._fps is None:
-            start_timestamp = self._df.iloc[start_ptr][self._time_key]
+            start_timestamp = self._df.iloc[start_ptr][self._time_label]
 
         if self._fps:
             # TODO: refactor this variable
@@ -219,7 +236,7 @@ class DataPlayer(_DataPlayerBase):
                 target_time = t0 + (visited_rows * 1 / self._fps) / abs(self._rate)
                 visited_rows += 1
             else:
-                target_time = t0 + (row[self._time_key] - start_timestamp) / self._rate
+                target_time = t0 + (row[self._time_label] - start_timestamp) / self._rate
 
             # process, bundle and send
             self._son.s.bundler(target_time).add(self._son.process(row)).send()
@@ -231,7 +248,7 @@ class DataPlayer(_DataPlayerBase):
                 if self._fps:
                     t = ptr / self._fps
                 else:
-                    t = row[self._time_key]
+                    t = row[self._time_label]
 
                 self._video_player.seek_time(t)
 
@@ -256,6 +273,7 @@ class DataPlayer(_DataPlayerBase):
         _LOGGER.info('player thread ended')
 
     def pause(self) -> None:
+        """Pause playback."""
         if not self._running:
             raise ValueError('Already paused!')
         # stop workin thread
@@ -263,6 +281,13 @@ class DataPlayer(_DataPlayerBase):
         self._worker.join()
 
     def seek(self, target: Union[int, float]) -> None:
+        """Seek different data point.
+
+        :param target: index of data or time
+            if int, it is considered an integer
+            if float, it is considered a timestamp
+                binary search is used for this
+        """
         if isinstance(target, int):
             self._seek_idx(target)
         elif isinstance(target, float):
@@ -283,13 +308,13 @@ class DataPlayer(_DataPlayerBase):
                 )
             frame_idx = int(t * self._fps)
         else:
-            max_time = self._df[self._time_key].iloc[-1]
+            max_time = self._df[self._time_label].iloc[-1]
             if not (0 <= t <= max_time):
                 raise ValueError(
                     f"Cannot set time to {t}. "
                     f"Must be between 0 and {max_time}."
                 )
-            timestamps = self._df[self._time_key]
+            timestamps = self._df[self._time_label]
             # seek with binary search
             frame_idx = np.searchsorted(timestamps, t)
 
@@ -307,7 +332,7 @@ class DataPlayer(_DataPlayerBase):
                 t = idx / self._fps
             else:
                 row = self._df.iloc[idx]
-                t = row[self._time_key]
+                t = row[self._time_label]
 
             self._video_player.seek_time(t)
 
@@ -342,8 +367,8 @@ class DataPlayer(_DataPlayerBase):
                 if self._fps:
                     timestamp = i / self._fps / self.rate
                 else:
-                    start_timestamp = self._df.iloc[0][self._time_key]
-                    timestamp = row[self._time_key] - start_timestamp / self.rate
+                    start_timestamp = self._df.iloc[0][self._time_label]
+                    timestamp = row[self._time_label] - start_timestamp / self.rate
                 bundler.add(timestamp, clone.process(row))
 
             # stop sonification on last message
@@ -404,6 +429,7 @@ class DataPlayer(_DataPlayerBase):
 
 
 class DataLogger:
+    """This class is used to handle logging of data from streams."""
 
     def __init__(self):
         self.logging = False
@@ -437,6 +463,10 @@ class DataLogger:
         self._writer = None
 
     def feed(self, row: pd.Series):
+        """Feed data into the logger.
+
+        :param row: pandas series containing the datato log
+        """
         if not self.logging:
             raise ValueError('Start logger first!')
 
@@ -448,6 +478,7 @@ class DataLogger:
 
 
 class _RTDataPlayerBase(_DataPlayerBase):
+    """Base class for real-time data players."""
 
     def __init__(
             self,
@@ -470,24 +501,38 @@ class _RTDataPlayerBase(_DataPlayerBase):
         self._t_start = time()
 
     def record_start(self, path='record.wav', overwrite=False) -> None:
+        """Start recorder.
+
+        If a video player was specified, start its recorder in synch.
+
+        :param path: path of the output file
+        :param overwrite: overwrite the output file
+        """
         super().record_start(path, overwrite)
 
         if self._video_player:
             self._video_player.record(self._t_start)
 
     def record_stop(self) -> None:
+        """Stop recorder."""
         super().record_stop()
 
         if self._video_player:
             self._video_player.stop()
 
     def log_start(self, path='log.csv', overwrite=False) -> None:
+        """Start logger.
+
+        :param path: path of the output file
+        :param overwrite: overwrite the output file
+        """
         self._logger.start(path, overwrite)
 
         if self._video_player:
             self._video_player.record(self._t_start)
 
     def log_stop(self) -> None:
+        """Stop logger."""
         self._logger.stop()
 
         if self._video_player:
@@ -495,6 +540,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
 
 
 class RTDataPlayer(_RTDataPlayerBase):
+    """Single stream real-time data player."""
 
     def __init__(
             self,
@@ -504,6 +550,13 @@ class RTDataPlayer(_RTDataPlayerBase):
             video_player: RTVideoPlayer = None,
             timestamp: bool = False
     ):
+        """
+        :param stream: stream of data
+        :param sonification: sonification to use
+        :param feature_display
+        :param video_player
+        :param timestamp: wether to add timestamps to the data
+        """
         super().__init__(sonification, feature_display, video_player)
 
         self._stream = stream
@@ -514,6 +567,7 @@ class RTDataPlayer(_RTDataPlayerBase):
         self._widget_view = None
 
     def listen(self) -> None:
+        """Start stream of data."""
         super().listen()
 
         self._stream.exec_open_hooks()
@@ -565,6 +619,7 @@ class RTDataPlayer(_RTDataPlayerBase):
             _LOGGER.info('listener thread ended')
 
     def close(self) -> None:
+        """End stream of data."""
         if not self._running:
             raise ValueError('Already closed!')
 
@@ -580,16 +635,39 @@ class RTDataPlayer(_RTDataPlayerBase):
 
 
 class RTDataPlayerMT(_RTDataPlayerBase):
+    """Muti-stream thread-based real-time data player.
+
+    This class is subject to the constraints of the GIL. As such, it won't work
+    well if CPU-intensive operations will be carried on by the threads. If this
+    is an issue, you should use RTDataPlayerMP.
+
+    As the streams generally have different frame rate, to process them jointly,
+    when the sonification is performed, it takes into account the last sample of
+    data produced by every stream.
+    """
 
     def __init__(
             self,
-            streams: list[Stream],
+            streams: Sequence[Stream],
             sonification: Union[Sonification, GroupSonification],
             fps=None,
             feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
             preprocessor: Type[Preprocessor] = None,
     ):
+        """
+        :param streams: sequence of stream objects
+        :param sonification: sonification to use
+        :param fps: rate of execution of the sonification
+            if not specified, an attempt will be made to infer it from the streams;
+            the operation will fail if the fps of the streams is not available.
+        :param feature_display
+        :param video_player
+        :param preprocessor: preprocessor to apply to the merged data
+            this should be only used if the preprocessor needs to access data
+            from different streams. If not, you should preprocess data directly
+            in the stream.
+        """
         super().__init__(sonification, feature_display, video_player)
 
         if len(streams) == 0:
@@ -602,10 +680,10 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             fps = max([stream.fps for stream in streams])
         self._fps = fps
 
+        print(f'@ {fps} fps')
+
         self._preprocessor = preprocessor
         self._preprocessor_instance = None
-
-        print(f'@ {fps} fps')
 
         # threads that fetch data from the streams
         self._stream_workers = None
@@ -622,7 +700,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         self._widget_view = None
 
     @property
-    def streams(self) -> list[Stream]:
+    def streams(self) -> Sequence[Stream]:
         return self._streams
 
     def listen(self) -> None:
@@ -779,9 +857,19 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             thread.join()
 
     def log_start_stream(self, idx: int, path=None, overwrite=False) -> None:
+        """Start logging on a stream.
+
+        :param idx: stream index
+        :param path: path of the output file
+        :param overwrite: overwrite the output file
+        """
         self._stream_loggers[idx].start(path, overwrite)
 
     def log_stop_stream(self, idx: int) -> None:
+        """ Stop stream logging.
+
+        :param idx: index of the stream
+        """
         self._stream_loggers[idx].stop()
 
     def _ipython_display_(self):
@@ -792,16 +880,36 @@ class RTDataPlayerMT(_RTDataPlayerBase):
 
 
 class RTDataPlayerMP(_RTDataPlayerBase):
+    """Muti-stream process-based real-time data player.
+
+    This class uses one process for each stream and uses shared memory to pass
+    data from one process to the other.
+
+    As the streams generally have different frame rate, to process them jointly,
+    when the sonification is performed, it takes into account the last sample of
+    data produced by every stream.
+    """
 
     def __init__(
             self,
-            streams: list[Stream],
+            streams: Sequence[Stream],
             sonification: Union[Sonification, GroupSonification],
             fps=None,
             feature_display: RTFeatureDisplay = None,
             video_player: RTVideoPlayer = None,
             preprocessor: Type[Preprocessor] = None,
     ):
+        """
+        :param streams: sequence of stream objects
+        :param sonification: sonification to use
+        :param fps: rate of execution of the sonification
+        :param feature_display
+        :param video_player
+        :param preprocessor: preprocessor to apply to the merged data
+            this should be only used if the preprocessor needs to access data
+            from different streams. If not, you should preprocess data directly
+            in the stream.
+        """
         super().__init__(sonification, feature_display, video_player)
 
         if len(streams) == 0:
@@ -833,7 +941,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
         self._widget_view = None
 
     @property
-    def streams(self) -> list[Stream]:
+    def streams(self) -> Sequence[Stream]:
         return self._streams
 
     def listen(self) -> None:
