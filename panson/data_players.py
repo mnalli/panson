@@ -344,7 +344,7 @@ class DataPlayer(_DataPlayerBase):
         else:
             self._ptr = idx
 
-    def _get_score(self, end_delay) -> Dict[float, List[scn.OSCMessage]]:
+    def _get_score(self, rate, end_delay) -> Dict[float, List[scn.OSCMessage]]:
 
         # shallow copy: this works only if the user redefines object that would
         # otherwise be modified in place. The structure of the framework should
@@ -365,10 +365,10 @@ class DataPlayer(_DataPlayerBase):
 
             for i, row in self._df.iterrows():
                 if self._fps:
-                    timestamp = i / self._fps / self.rate
+                    timestamp = i / self._fps / rate
                 else:
                     start_timestamp = self._df.iloc[0][self._time_label]
-                    timestamp = row[self._time_label] - start_timestamp / self.rate
+                    timestamp = (row[self._time_label] - start_timestamp) / rate
                 bundler.add(timestamp, clone.process(row))
 
             # stop sonification on last message
@@ -388,7 +388,8 @@ class DataPlayer(_DataPlayerBase):
             header_format: str = "AIFF",
             sample_format: str = "int16",
             options: ServerOptions = None,
-            end_delay: float = 0.1
+            end_delay: float = 0.1,
+            rate: float = 1
     ) -> subprocess.CompletedProcess:
         """Render current sonification using NRT synthesis.
 
@@ -399,14 +400,17 @@ class DataPlayer(_DataPlayerBase):
         :param options: instance of server options to specify server options
         :param end_delay: time offset to add to the end of the file before
             putting the end tag
+        :param rate: playback rate of the rendering
+            must be positive and non-zero
         :return: Completed scsynth non-realtime process.
         """
 
+        if rate <= 0:
+            raise ValueError("Rate must be positive.")
+
         out_file = out_file + '.' + header_format.lower()
 
-        score = self._get_score(end_delay)
-
-        print(f'Rendering with rate {self.rate}')
+        score = self._get_score(rate, end_delay)
 
         return Score.record_nrt(
             score,
