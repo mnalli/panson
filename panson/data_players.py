@@ -392,7 +392,7 @@ class DataPlayer(_DataPlayerBase):
     ) -> subprocess.CompletedProcess:
         """Render current sonification using NRT synthesis.
 
-        :param out_file: Path of the resulting sound file.
+        :param out_file: Path of the resulting sound file without extension
         :param sample_rate: sample rate for synthesis
         :param header_format: header format of the output file
         :param sample_format: sample format of the output file
@@ -402,9 +402,11 @@ class DataPlayer(_DataPlayerBase):
         :return: Completed scsynth non-realtime process.
         """
 
+        out_file = out_file + '.' + header_format.lower()
+
         score = self._get_score(end_delay)
 
-        print(f'Rendering with rate == {self.rate}')
+        print(f'Rendering with rate {self.rate}')
 
         return Score.record_nrt(
             score,

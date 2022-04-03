@@ -30,7 +30,7 @@ class DataPlayerWidgetView:
             description='Rate:',
         )
 
-        record = widgets.ToggleButton(
+        self.record_button = widgets.ToggleButton(
             value=False,
             description='Record',
             icon='microphone'
@@ -44,11 +44,25 @@ class DataPlayerWidgetView:
             description='Overwrite'
         )
 
+        self.export_button = widgets.Button(
+            description='Export',
+            icon='level-down'
+        )
+        self.export_output = widgets.Text(
+            value='out',
+            description='Output path:',
+        )
+        self.export_format = widgets.Dropdown(
+            options=['WAV', 'AIFF'],
+            value='WAV'
+        )
+
         self._widget = VBox([
             self._slider,
             HBox([beginning, backward, pause, play, forward, end]),
             rate,
-            HBox([record, self.record_output, self.record_overwrite])
+            HBox([self.record_button, self.record_output, self.record_overwrite]),
+            HBox([self.export_button, self.export_output, self.export_format])
         ])
 
         # bind callbacks
@@ -65,7 +79,8 @@ class DataPlayerWidgetView:
 
         rate.observe(self._on_rate, 'value')
 
-        record.observe(self._toggle_record, 'value')
+        self.record_button.observe(self._toggle_record, 'value')
+        self.export_button.on_click(self._on_export)
 
     def _ipython_display_(self):
         display(self._widget)
@@ -122,6 +137,9 @@ class DataPlayerWidgetView:
             )
         else:
             self._player.record_stop()
+
+    def _on_export(self, button):
+        self._player.export(self.export_output.value, header_format=self.export_format.value)
 
 
 class RTDataPlayerWidgetView:
