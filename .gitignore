@@ -2,9 +2,6 @@
 # PyCharm
 .idea/
 
-# audio sample directory (symlink)
-samples
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

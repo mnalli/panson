@@ -1,3 +1,9 @@
+# The code contained in this file was developed starting from code written by
+# Thomas Hermann and Ago Mesanovic:
+# - VideoPlayer was developed starting from the prototype contained in videoviewer.py
+# - RTVideoPlayer was developed starting from a prototype contained in vcr_gui_pipe.py,
+#   part of the sonification project "physioson"
+
 """This module contains classes that allow to playback video frames.
 
 These video player classes effectively bypass the GIL, as computations are

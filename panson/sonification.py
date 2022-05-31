@@ -257,3 +257,23 @@ class GroupSonification:
     def _ipython_display_(self):
         for son in self.sonifications:
             display(son)
+
+
+class NoneSonification(Sonification):
+
+    def init_parameters(self, *args, **kwargs) -> None:
+        pass
+
+    def init_server(self) -> Bundler:
+        return Bundler()
+
+    def start(self) -> Bundler:
+        print('starting')
+        return Bundler()
+
+    def stop(self) -> Bundler:
+        print('stopping')
+        return Bundler()
+
+    def _process(self, row: Series) -> Bundler:
+        return Bundler()

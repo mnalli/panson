@@ -350,3 +350,28 @@ class DummySinCos(Stream):
 
             # TODO: improve timing
             time.sleep(1 / fps)
+
+
+class NoneStream(Stream):
+    """Dummy data generator used for testing and evaluation."""
+
+    def datagen(self, fps=30, size=1) -> Generator:
+
+        header = []
+
+        for i in range(size):
+            header.append(self.name + '_' + str(i))
+
+        yield header
+
+        t0 = time.time()
+        target_time = t0
+
+        while True:
+            yield np.zeros(size, dtype='float64')
+
+            target_time += 1 / fps
+            waiting_time = target_time - time.time()
+
+            if waiting_time > 0:
+                time.sleep(waiting_time)

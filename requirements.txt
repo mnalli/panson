@@ -13,6 +13,6 @@ pyqtgraph>=0.12.3
 
 PIMS~=0.5
 scikit-image~=0.19.2
-av~=9.1.1
+av~=8.1.0
 
 opencv-python-headless~=4.5.5.64
