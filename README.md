@@ -2,8 +2,6 @@
 
 Panson is an interactive sonification framework based on sc3nb.
 
-We also present a facial expression sonification Jupyeter Notebook based on OpenFace 2.0 and Panson.
-
 ## Installation
 
 You can installed the required dependencies with the following command:
