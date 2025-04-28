@@ -1,5 +1,4 @@
-# develop version of sc3nb
--e git+https://github.com/interactive-sonification/sc3nb.git@bf68054507efe3059d093a2f225ca7c65b4f8cd0#egg=sc3nb
+sc3nb==1.1.0
 
 matplotlib~=3.5.1
 numpy~=1.22.3
