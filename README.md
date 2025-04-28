@@ -6,8 +6,19 @@ Panson is an interactive sonification framework based on sc3nb.
 
 You can installed the required dependencies with the following command:
 
-`pip install -r requirements.txt`
+```sh
+pip install -r requirements.txt
+```
 
-It is better to run it in a virtual environment. If you are using conda you can do:
+You may want to install it in a virtual environment. If you are using conda:
 
-`conda create --name panson python=3.9`
+```sh
+conda create --name panson python=3.9
+```
+
+Possibly, there will be problems installing `av`, because it needs a C++ compiler.
+You can install everything with:
+
+```sh
+conda install -c conda-forge av~=8.1.0
+```
