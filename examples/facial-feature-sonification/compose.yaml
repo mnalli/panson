@@ -1,0 +1,17 @@
+services:
+  openface:
+    image: algebr/openface:latest
+    entrypoint: sleep infinity
+    volumes:
+      # put video files here, so that OpenFace can access them
+      - ./mount:/home/openface-build/files
+      # bind X server directory
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # share Xauthority, so that the container can authenticate to X11
+      - ${XAUTHORITY}:/root/.Xauthority
+    environment:
+      # pass over DISPLAY variable
+      - DISPLAY
+    devices:
+      # bind webcam for real-time usage
+      - /dev/video0
