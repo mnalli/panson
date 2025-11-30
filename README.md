@@ -1,6 +1,7 @@
 # Panson
 
-Panson is an interactive sonification framework based on sc3nb.
+Panson is an interactive sonification framework based on
+[`sc3nb`](https://github.com/interactive-sonification/sc3nb).
 
 ## Installation
 
