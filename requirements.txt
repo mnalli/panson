@@ -1,6 +1,8 @@
 sc3nb==1.1.0
 
-matplotlib~=3.5.1
+matplotlib==3.5.1
+pillow==11.3.0
+
 numpy~=1.22.3
 pandas>=1.3.4
 
