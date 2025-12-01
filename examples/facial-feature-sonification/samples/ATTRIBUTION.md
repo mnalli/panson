@@ -1,0 +1,17 @@
+# Attribution
+
+These samples were derived from these sounds from [Freesound](https://freesound.org/):
+- Licensed under CC BY 4.0
+  - `au01.wav`: `360327__inspectorj__triangle-8-hard-hit-a.wav` by [InspectorJ](https://freesound.org/people/InspectorJ/)
+  - `au02.wav`: `339808__inspectorj__hand-bells-c-db-single.wav` by [InspectorJ](https://freesound.org/people/InspectorJ/)
+  - `au04.wav`: `411574__inspectorj__alto-gong-metal-hit-b-h6-xy.wav` by [InspectorJ](https://freesound.org/people/InspectorJ/)
+- Licensed under CC BY 3.0
+  - `au05.wav`: `277397__earmark-audio__efev1-percussion-snare.wav` by [Earmark_Audio](https://freesound.org/people/Earmark_Audio/)
+  - `au09.wav`: `577014__nezuai__cartoon-percussion-3.wav` by [nezuai](https://freesound.org/people/nezuai/)
+  - `au15.wav`: `387715__jagadamba__gong-percussion.wav` by [Jagadamba](https://freesound.org/people/Jagadamba/)
+  - `au20.wav`: `414563__pjcohen__agogo-bell-low-velocity11.wav` by [pjcohen](https://freesound.org/people/pjcohen/)
+  - `au25.wav`: `138358__minorr__bass-drum-p.wav` by [minorr](https://freesound.org/people/minorr/)
+  - `au26.wav`: `234746__sonidotv__legno-10.wav` by [sonidotv](https://freesound.org/people/sonidotv/)
+  - `au18.wav`: `207919__altemark__space-snare.wav` by [altemark](https://freesound.org/people/altemark/)
+
+The ones that were not mentioned were derived from public-domain samples.
