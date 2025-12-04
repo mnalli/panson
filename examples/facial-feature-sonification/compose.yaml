@@ -1,5 +1,6 @@
 services:
   openface:
+    container_name: openface
     image: algebr/openface:latest
     entrypoint: sleep infinity
     volumes:
