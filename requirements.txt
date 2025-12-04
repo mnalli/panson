@@ -3,17 +3,18 @@ sc3nb==1.1.0
 matplotlib==3.5.1
 pillow==11.3.0
 
-numpy~=1.22.3
-pandas>=1.3.4
+numpy==1.22.3
+pandas==1.3.4
 
 ipywidgets==7.7.5
-ipython~=8.2.0
+ipython==8.2.0
 
-PyQt5~=5.15.6
-pyqtgraph>=0.12.3
+PyQt5==5.15.6
+pyqtgraph==0.12.3
 
-PIMS~=0.5
-scikit-image~=0.19.2
-av~=8.1.0
+PIMS==0.5
+scikit-image==0.19.2
 
-opencv-python-headless~=4.5.5.64
+av==15.1.0
+
+opencv-python-headless==4.5.5.64
