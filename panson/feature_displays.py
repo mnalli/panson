@@ -70,7 +70,7 @@ class RTFeatureDisplay:
             self.ax.plot(self.x, y, label=f'{key}')
 
         # store into field to avoid garbage collection of the animation
-        self.anim = FuncAnimation(self.fig, self._animate, interval=1000 / fps)
+        self.anim = FuncAnimation(self.fig, self._animate, interval=1000/fps, cache_frame_data=False)
 
         # add automatic padding to plot
         self.ax.legend(loc='upper left')
