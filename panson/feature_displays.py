@@ -1,8 +1,3 @@
-import matplotlib
-
-# TODO: how to handle?
-matplotlib.use('TkAgg')
-
 import matplotlib.pyplot as plt
 
 from matplotlib.animation import FuncAnimation
@@ -10,18 +5,9 @@ from matplotlib.animation import FuncAnimation
 import pandas as pd
 from itertools import count
 
-# from IPython import get_ipython
-
 from math import inf
 
 from typing import Sequence
-
-# ipython = get_ipython()
-
-# if ipython:
-#     # use "notebook" backend by default if we are in jupyter
-#     # TODO: can the user set to other backends?
-#     ipython.run_line_magic('matplotlib', 'notebook')
 
 plt.style.use('fivethirtyeight')
 
