@@ -20,7 +20,6 @@ PyQt5==5.15.6
 pyqtgraph==0.12.3
 
 PIMS==0.5
-scikit-image==0.19.2
 
 av==15.1.0
 
