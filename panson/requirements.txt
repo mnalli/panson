@@ -17,7 +17,9 @@ pandas==1.3.4
 # jupyter notebook widgets
 ipywidgets==7.7.5
 
-ipython==8.10.0    # TODO: is this dependency optional?
+# TODO: is this dependency optional?
+# TODO: find a way to remove: "from IPython.display import display"
+ipython==8.10.0
 
 # required by video players
 # TODO
