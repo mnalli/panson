@@ -17,6 +17,10 @@ from typing import final
 import re
 
 
+# TODO: NoneSonification?
+__all__ = 'Parameter', 'Sonification', 'bundle', 'GroupSonification'
+
+
 class Parameter:
     """
     Descriptor class for declaring non-graphical parameters of the sonification.

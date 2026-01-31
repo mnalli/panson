@@ -4,6 +4,16 @@ from abc import ABC, abstractmethod
 from math import log2
 
 
+# TODO: WidgetParameter, SelectionParameter and BooleanParameter
+__all__ = (
+    'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
+    'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
+    'IntRangeSliderParameter', 'FloatRangeSliderParameter',
+    'SelectParameter', 'DropdownParameter', 'ComboboxParameter',
+    'ToggleButtonParameter', 'CheckboxParameter'
+)
+
+
 class WidgetParameter(ABC):
     """Base class for all widget parameters."""
 

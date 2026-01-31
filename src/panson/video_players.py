@@ -34,6 +34,9 @@ import pims
 import traceback
 
 
+__all__ = 'VideoPlayer', 'RTVideoPlayer'
+
+
 class Communicate(QObject):
 
     updateImg = pyqtSignal(np.ndarray)

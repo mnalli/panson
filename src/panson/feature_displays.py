@@ -9,6 +9,9 @@ from math import inf
 
 from typing import Sequence
 
+
+__all__ = 'RTFeatureDisplay',
+
 plt.style.use('fivethirtyeight')
 
 # TODO: refactor using draw_artists?

@@ -5,31 +5,21 @@ of interactive sonification applications within python and jupyter
 notebooks.
 """
 
-from .sonification import Parameter, Sonification, bundle, GroupSonification
-from .widget_parameters import (
-    IntSliderParameter, FloatSliderParameter, FloatLogSliderParameter,
-    DbSliderParameter, MidiSliderParameter, FreqSliderParameter,
-    IntRangeSliderParameter, FloatRangeSliderParameter,
-    DropdownParameter, SelectParameter, ComboboxParameter,
-    ToggleButtonParameter, CheckboxParameter
+from .sonification import *
+from .widget_parameters import *
+from .data_players import *
+from .feature_displays import *
+from .video_players import *
+from .streams import *
+from .preprocessors import *
+
+
+__all__ = (
+    sonification.__all__ +
+    widget_parameters.__all__ +
+    data_players.__all__ +
+    feature_displays.__all__ +
+    video_players.__all__ +
+    streams.__all__ +
+    preprocessors.__all__
 )
-from .data_players import DataPlayer, RTDataPlayer, RTDataPlayerMT, RTDataPlayerMP
-from .feature_displays import RTFeatureDisplay
-from .video_players import VideoPlayer, RTVideoPlayer
-from .streams import Stream
-from .preprocessors import Preprocessor
-
-
-__all__ = [
-    'Parameter', 'Sonification', 'bundle', 'GroupSonification',
-    'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
-    'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
-    'IntRangeSliderParameter', 'FloatRangeSliderParameter',
-    'DropdownParameter', 'SelectParameter', 'ComboboxParameter',
-    'ToggleButtonParameter', 'CheckboxParameter',
-    'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMT', 'RTDataPlayerMP',
-    'RTFeatureDisplay',
-    'VideoPlayer', 'RTVideoPlayer',
-    'Stream',
-    'Preprocessor'
-]

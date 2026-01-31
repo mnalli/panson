@@ -37,6 +37,9 @@ import weakref
 import logging
 _LOGGER = logging.getLogger(__name__)
 
+
+__all__ = 'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMT', 'RTDataPlayerMP'
+
 # TODO: widgets are not updated when the data player state is changed programmatically
 
 

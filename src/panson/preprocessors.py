@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+
+__all__ = 'Preprocessor',
+
 # TODO: with this mechanism, the user is forced to use a constructor without
 # arguments. We would want the constructor to support parameters.
 # This could be done using a builder pattern and passing this instead of the

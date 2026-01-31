@@ -14,6 +14,9 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 
+__all__ = 'Stream'
+
+
 class Stream:
     """This class is used to define real-time data streams.
 
