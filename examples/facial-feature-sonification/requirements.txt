@@ -1,3 +1,4 @@
 notebook==7.5.0
 
--r panson/requirements.txt
+# install panson
+-e ../..

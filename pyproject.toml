@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "panson"
+version = "0.1.0"
+authors = [
+  { name = "Michele Nalli", email = "m.nalli@ikmail.com" }
+]
+description = "Interactive sonification framework"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# TODO: find appropriate classifiers
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+
+license = "MIT"
+license-files = ["LICENSE"]
+
+# TODO: use version ranges
+dependencies = [
+  "sc3nb==1.1.0",
+
+  "matplotlib==3.9.4",
+
+  # required by `import matplotlib.pyplot`
+  # it may be possible to remove it
+  "pillow==11.3.0",
+
+  # use matplotlib interactive features in notebooks
+  # e.g. %matplotlib widget, necessary for feature displays
+  # TODO: is this dependency optional?
+  "ipympl==0.9.8",
+
+  "numpy==1.23",
+  "pandas==1.3.4",
+
+  # jupyter notebook widgets
+  "ipywidgets==7.7.5",
+
+  # TODO: is this dependency optional?
+  # TODO: find a way to remove: "from IPython.display import display"
+  "ipython==8.10.0",
+
+  # required by video players
+  # TODO
+  # - Can I do it more minimally?
+  # - Is there a framework that can help?
+  "PyQt5==5.15.6",
+  "pyqtgraph==0.12.3",
+
+  "PIMS==0.5",
+  # pims.Video() --> "ImportError: This reader requires PyAV, MoviePy, or ImageIO"
+  "av==15.1.0",
+
+  # TODO: find a way to remove this dependency
+  "opencv-python-headless==4.8.1.78"
+]
+
+[project.urls]
+Homepage = "https://github.com/mnalli/panson"
+Issues = "https://github.com/mnalli/panson/issues"
