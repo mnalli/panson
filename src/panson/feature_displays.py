@@ -1,14 +1,10 @@
-import matplotlib.pyplot as plt
-
-from matplotlib.animation import FuncAnimation
-
-import pandas as pd
 from itertools import count
-
 from math import inf
-
 from typing import Sequence
 
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.animation import FuncAnimation
 
 __all__ = 'RTFeatureDisplay',
 

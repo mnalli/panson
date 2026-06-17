@@ -1,6 +1,6 @@
 import ipywidgets as widgets
-from ipywidgets import HBox, VBox
 from IPython.display import display
+from ipywidgets import HBox, VBox
 
 
 class DataPlayerWidgetView:

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-import pandas as pd
 
+import pandas as pd
 
 __all__ = 'Preprocessor',
 

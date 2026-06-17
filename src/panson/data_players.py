@@ -1,40 +1,33 @@
+import copy
 import csv
+import logging
+import multiprocessing as mp
+import os
+import subprocess
 import threading
-
-import sc3nb as scn
-from sc3nb import Score, Bundler
-from sc3nb.sc_objects.server import ServerOptions
+import weakref
+from threading import Thread
+from time import sleep, time
+from typing import Dict, List, Sequence, Type, Union
 
 import numpy as np
 import pandas as pd
-
-from time import time, sleep
-from threading import Thread
-
-from .sonification import Sonification, GroupSonification
-from .streams import Stream
+import sc3nb as scn
+from IPython.display import display
+from sc3nb import Bundler, Score
+from sc3nb.sc_objects.server import ServerOptions
 
 from .feature_displays import RTFeatureDisplay
-from .video_players import VideoPlayer, RTVideoPlayer
-
-from .views import DataPlayerWidgetView, RTDataPlayerWidgetView, RTDataPlayerMultiWidgetView
-
-from typing import Union, List, Dict, Type, Sequence
-
 from .preprocessors import Preprocessor
+from .sonification import GroupSonification, Sonification
+from .streams import Stream
+from .video_players import RTVideoPlayer, VideoPlayer
+from .views import (
+    DataPlayerWidgetView,
+    RTDataPlayerMultiWidgetView,
+    RTDataPlayerWidgetView,
+)
 
-from IPython.display import display
-
-import subprocess
-import os
-
-import copy
-
-import multiprocessing as mp
-
-import weakref
-
-import logging
 _LOGGER = logging.getLogger(__name__)
 
 

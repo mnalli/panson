@@ -1,8 +1,7 @@
-import ipywidgets as widgets
 from abc import ABC, abstractmethod
-
 from math import log2
 
+import ipywidgets as widgets
 
 # TODO: WidgetParameter, SelectionParameter and BooleanParameter
 __all__ = (

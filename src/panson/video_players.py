@@ -13,26 +13,18 @@ The classes are meant to be used together with the data players.
 """
 
 import csv
-import time
-
-from PyQt5 import QtWidgets, QtCore
-
-from PyQt5.QtCore import QObject, pyqtSignal
-
-import pyqtgraph as pg
-
-import cv2
-
-import threading
-import sys
-
 import multiprocessing as mp
-import numpy as np
-
-import pims
-
+import sys
+import threading
+import time
 import traceback
 
+import cv2
+import numpy as np
+import pims
+import pyqtgraph as pg
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtCore import QObject, pyqtSignal
 
 __all__ = 'VideoPlayer', 'RTVideoPlayer'
 

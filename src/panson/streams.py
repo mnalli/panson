@@ -1,15 +1,13 @@
+import csv
+import logging
+import math
+import time
+from typing import Any, Callable, Generator, Tuple, Type, final
+
 import numpy as np
 import pandas as pd
 
-from typing import Generator, final, Any, Callable, Tuple, Type
-
 from .preprocessors import Preprocessor
-
-import csv
-import time
-import math
-
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 

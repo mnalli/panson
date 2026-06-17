@@ -1,21 +1,15 @@
+import re
 from abc import ABC, abstractmethod
-import sc3nb as scn
-from sc3nb.osc.osc_communication import Bundler
-from sc3nb.sc_objects.server import SCServer
-
-from functools import wraps
-from functools import reduce
-
-from pandas import Series
+from functools import reduce, wraps
 from threading import RLock
-
-import ipywidgets as widgets
-from IPython.display import display
-
 from typing import final
 
-import re
-
+import ipywidgets as widgets
+import sc3nb as scn
+from IPython.display import display
+from pandas import Series
+from sc3nb.osc.osc_communication import Bundler
+from sc3nb.sc_objects.server import SCServer
 
 __all__ = 'Parameter', 'Sonification', 'bundle', 'GroupSonification'
 

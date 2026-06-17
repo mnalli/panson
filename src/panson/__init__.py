@@ -5,14 +5,13 @@ of interactive sonification applications within python and jupyter
 notebooks.
 """
 
-from .sonification import *
-from .widget_parameters import *
 from .data_players import *
 from .feature_displays import *
-from .video_players import *
-from .streams import *
 from .preprocessors import *
-
+from .sonification import *
+from .streams import *
+from .video_players import *
+from .widget_parameters import *
 
 __all__ = (
     sonification.__all__ +
