@@ -64,3 +64,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/mnalli/panson"
 Issues = "https://github.com/mnalli/panson/issues"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.17",
+]
