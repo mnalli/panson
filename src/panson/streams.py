@@ -12,7 +12,7 @@ from .preprocessors import Preprocessor
 _LOGGER = logging.getLogger(__name__)
 
 
-__all__ = 'Stream'
+__all__ = 'Stream',
 
 
 class Stream:
