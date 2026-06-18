@@ -12,7 +12,7 @@ from .preprocessors import Preprocessor
 _LOGGER = logging.getLogger(__name__)
 
 
-__all__ = 'Stream',
+__all__ = ("Stream",)
 
 
 class Stream:
@@ -29,12 +29,12 @@ class Stream:
     """
 
     def __init__(
-            self,
-            name: str,
-            datagen=None,
-            args=(),
-            kwargs=None,
-            preprocessor: Type[Preprocessor] = None
+        self,
+        name: str,
+        datagen=None,
+        args=(),
+        kwargs=None,
+        preprocessor: Type[Preprocessor] = None,
     ):
         """
         :param name: unique name for the stream instance
@@ -72,7 +72,7 @@ class Stream:
     def sample_size(self):
         """Size of numpy array yielded by the generator."""
         if self._sample_size is None:
-            raise ValueError('Initialize length first by calling the test method.')
+            raise ValueError("Initialize length first by calling the test method.")
         else:
             return self._sample_size
 
@@ -80,7 +80,7 @@ class Stream:
     def dtype(self):
         """dtype of numpy array yielded by the generator."""
         if self._dtype is None:
-            raise ValueError('Initialize dtype first by calling the test method.')
+            raise ValueError("Initialize dtype first by calling the test method.")
         else:
             return self._dtype
 
@@ -88,7 +88,7 @@ class Stream:
     def fps(self):
         """Frame rate of the stream."""
         if self._fps is None:
-            raise ValueError('Initialize fps first by calling the test method.')
+            raise ValueError("Initialize fps first by calling the test method.")
         else:
             return self._fps
 
@@ -118,7 +118,9 @@ class Stream:
         if self._datagen:
             return self._datagen(*args, **kwargs)
 
-        raise ValueError("Define datagen constructor argument or override datagen method.")
+        raise ValueError(
+            "Define datagen constructor argument or override datagen method."
+        )
 
     def _datagen_preprocessor_wrapper(self, *args, **kwargs) -> Generator:
         """Generator method that wraps datagen with preprocessing.
@@ -166,7 +168,7 @@ class Stream:
             self._preprocessor_instance = self._preprocessor()
             return self._datagen_preprocessor_wrapper(*self._args, **self._kwargs)
 
-    def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
+    def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> "Stream":
         """Add hook to be executed when the stream is opened.
 
         :param hook
@@ -177,7 +179,7 @@ class Stream:
         self._open_hooks.append((hook, args, kwargs))
         return self
 
-    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> 'Stream':
+    def add_close_hook(self, hook: Callable[..., None], *args, **kwargs) -> "Stream":
         """Add hook to be executed when the stream is closed.
 
         :param hook
@@ -214,7 +216,7 @@ class Stream:
         _LOGGER.debug(f"stream {self.name}: execute close hooks")
         self._exec_hooks(self._close_hooks)
 
-    def test(self, test_samples=10, print_header=False, dryrun=False) -> 'Stream':
+    def test(self, test_samples=10, print_header=False, dryrun=False) -> "Stream":
         """Test the stream and inspect its characteristics.
 
         This function can be used both for debugging the data generator and for
@@ -245,29 +247,31 @@ class Stream:
 
         if len(header) == sample_size:
             if first_row.dtype == object:
-                raise ValueError('Data dtype cannot be object.')
+                raise ValueError("Data dtype cannot be object.")
         else:
             raise ValueError(
-                f'Header length ({len(header)}) must be equal to row length ({sample_size}).'
+                f"Header length ({len(header)}) must be equal to row length ({sample_size})."
             )
 
         for i, row in zip(range(test_samples), gen):
             timestamps.append(time.time())
 
             if sample_size != len(row):
-                raise ValueError(f'row #{i+1} has length {sample_size}')
+                raise ValueError(f"row #{i + 1} has length {sample_size}")
             if dtype != row.dtype:
-                raise ValueError(f'row #{i+1} has dtype {row.dtype}')
+                raise ValueError(f"row #{i + 1} has dtype {row.dtype}")
 
         self.exec_close_hooks()
 
         # mean fps
         fps = 1 / np.diff(timestamps).mean()
 
-        print('Set info on data samples:')
-        print(f'    Sample size: {sample_size}')
-        print(f'    Sample dtype: {dtype} ({np.ctypeslib.as_ctypes_type(dtype)} as ctype)')
-        print(f'    Around {fps} fps')
+        print("Set info on data samples:")
+        print(f"    Sample size: {sample_size}")
+        print(
+            f"    Sample dtype: {dtype} ({np.ctypeslib.as_ctypes_type(dtype)} as ctype)"
+        )
+        print(f"    Around {fps} fps")
 
         if not dryrun:
             self._sample_size = sample_size
@@ -282,7 +286,7 @@ class CsvFifo(Stream):
 
     @staticmethod
     def datagen(fifo_path: str) -> Generator:
-        with open(fifo_path, 'r') as fifo:
+        with open(fifo_path, "r") as fifo:
             # the reader attempts to execute fifo.readline()
             # blocks if there are no lines
             reader = csv.reader(fifo, skipinitialspace=True)
@@ -293,19 +297,18 @@ class CsvFifo(Stream):
             # the loop ends when the pipe is closed from the writing side
             for row in reader:
                 # convert strings into floats
-                yield np.array(row, dtype='float64')
+                yield np.array(row, dtype="float64")
 
 
 class DummySin(Stream):
-
     @staticmethod
     def datagen(fps=30, amp=1, timestamps=True) -> Generator:
         """Yields sinusoidal values varying with time."""
 
-        header = ['value']
+        header = ["value"]
         if timestamps:
             # head insert
-            header.insert(0, 'timestamp')
+            header.insert(0, "timestamp")
 
         yield np.array(header)
 
@@ -325,15 +328,14 @@ class DummySin(Stream):
 
 
 class DummySinCos(Stream):
-
     @staticmethod
     def datagen(fps=30, sin_amp=1, cos_amp=1, timestamps=True) -> Generator:
         """Yields oscillatory values varying with time."""
 
-        header = ['sin', 'cos']
+        header = ["sin", "cos"]
         if timestamps:
             # head insert
-            header.insert(0, 'timestamp')
+            header.insert(0, "timestamp")
 
         yield np.array(header)
 
@@ -361,7 +363,7 @@ class NoneStream(Stream):
         header = []
 
         for i in range(size):
-            header.append(self.name + '_' + str(i))
+            header.append(self.name + "_" + str(i))
 
         yield header
 
@@ -369,7 +371,7 @@ class NoneStream(Stream):
         target_time = t0
 
         while True:
-            yield np.zeros(size, dtype='float64')
+            yield np.zeros(size, dtype="float64")
 
             target_time += 1 / fps
             waiting_time = target_time - time.time()

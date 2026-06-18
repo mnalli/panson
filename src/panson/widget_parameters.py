@@ -5,11 +5,19 @@ import ipywidgets as widgets
 
 # TODO: WidgetParameter, SelectionParameter and BooleanParameter
 __all__ = (
-    'IntSliderParameter', 'FloatSliderParameter', 'FloatLogSliderParameter',
-    'DbSliderParameter', 'MidiSliderParameter', 'FreqSliderParameter',
-    'IntRangeSliderParameter', 'FloatRangeSliderParameter',
-    'SelectParameter', 'DropdownParameter', 'ComboboxParameter',
-    'ToggleButtonParameter', 'CheckboxParameter'
+    "IntSliderParameter",
+    "FloatSliderParameter",
+    "FloatLogSliderParameter",
+    "DbSliderParameter",
+    "MidiSliderParameter",
+    "FreqSliderParameter",
+    "IntRangeSliderParameter",
+    "FloatRangeSliderParameter",
+    "SelectParameter",
+    "DropdownParameter",
+    "ComboboxParameter",
+    "ToggleButtonParameter",
+    "CheckboxParameter",
 )
 
 
@@ -20,7 +28,7 @@ class WidgetParameter(ABC):
         # save name of the descriptor
         self.public_name = name
         # name of widget attribute in sonification object
-        self.widget_private_name = '__' + name + '_widget'
+        self.widget_private_name = "__" + name + "_widget"
 
     def __get__(self, instance, owner):
         # get widget's value
@@ -48,10 +56,9 @@ class WidgetParameter(ABC):
 
 
 class IntSliderParameter(WidgetParameter):
-
     def __init__(self, min, max, step=1):
         if min >= max:
-            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+            raise ValueError(f"min ({min}) cannot be >= max ({max}).")
         self.min = min
         self.max = max
 
@@ -70,16 +77,15 @@ class IntSliderParameter(WidgetParameter):
             min=self.min,
             max=self.max,
             step=self.step,
-            description=self.public_name + ':',
-            layout=widgets.Layout(width='98%')
+            description=self.public_name + ":",
+            layout=widgets.Layout(width="98%"),
         )
 
 
 class FloatSliderParameter(WidgetParameter):
-
     def __init__(self, min, max, step=0.1):
         if min >= max:
-            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+            raise ValueError(f"min ({min}) cannot be >= max ({max}).")
         self.min = min
         self.max = max
 
@@ -98,28 +104,25 @@ class FloatSliderParameter(WidgetParameter):
             min=self.min,
             max=self.max,
             step=self.step,
-            description=self.public_name + ':',
-            layout=widgets.Layout(width='98%')
+            description=self.public_name + ":",
+            layout=widgets.Layout(width="98%"),
         )
 
 
 class DbSliderParameter(FloatSliderParameter):
-
     def __init__(self, step=0.1):
         super().__init__(-90, 0, step)
 
 
 class MidiSliderParameter(FloatSliderParameter):
-
     def __init__(self, step=1):
         super().__init__(0, 127, step)
 
 
 class FloatLogSliderParameter(WidgetParameter):
-
     def __init__(self, min_exp, max_exp, step=0.2, base=10):
         if min_exp >= max_exp:
-            raise ValueError(f'min_exp ({min_exp}) cannot be >= max_exp ({max_exp}).')
+            raise ValueError(f"min_exp ({min_exp}) cannot be >= max_exp ({max_exp}).")
         self.min_exp = min_exp
         self.max_exp = max_exp
 
@@ -127,9 +130,9 @@ class FloatLogSliderParameter(WidgetParameter):
         self.base = base
 
     def __set__(self, instance, value):
-        if not (self.base ** self.min_exp <= value <= self.base ** self.max_exp):
+        if not (self.base**self.min_exp <= value <= self.base**self.max_exp):
             raise ValueError(
-                f"value ({value}) must be between min ({self.base ** self.min_exp}) and max ({self.base ** self.max_exp})."
+                f"value ({value}) must be between min ({self.base**self.min_exp}) and max ({self.base**self.max_exp})."
             )
         super().__set__(instance, value)
 
@@ -140,22 +143,20 @@ class FloatLogSliderParameter(WidgetParameter):
             min=self.min_exp,
             max=self.max_exp,
             step=self.step,
-            description=self.public_name + ':',
-            layout=widgets.Layout(width='98%')
+            description=self.public_name + ":",
+            layout=widgets.Layout(width="98%"),
         )
 
 
 class FreqSliderParameter(FloatLogSliderParameter):
-
     def __init__(self, min_freq=20, max_freq=20000, step=0.2):
         super().__init__(log2(min_freq), log2(max_freq), step=step, base=2)
 
 
 class IntRangeSliderParameter(WidgetParameter):
-
     def __init__(self, min, max, step=1):
         if min >= max:
-            raise ValueError(f'min ({min}) cannot be >= max ({max}).')
+            raise ValueError(f"min ({min}) cannot be >= max ({max}).")
         self.min = min
         self.max = max
 
@@ -178,15 +179,14 @@ class IntRangeSliderParameter(WidgetParameter):
             min=self.min,
             max=self.max,
             step=self.step,
-            description=self.public_name + ':',
+            description=self.public_name + ":",
         )
 
 
 class FloatRangeSliderParameter(WidgetParameter):
-
     def __init__(self, min, max, step=0.1):
         if min >= max:
-            raise ValueError(f'min_exp ({min}) cannot be >= max_exp ({max}).')
+            raise ValueError(f"min_exp ({min}) cannot be >= max_exp ({max}).")
         self.min = min
         self.max = max
 
@@ -209,7 +209,7 @@ class FloatRangeSliderParameter(WidgetParameter):
             min=self.min,
             max=self.max,
             step=self.step,
-            description=self.public_name + ':'
+            description=self.public_name + ":",
         )
 
 
@@ -221,41 +221,32 @@ class SelectionParameter(WidgetParameter, ABC):
 
     def __set__(self, instance, value):
         if not (value in self.options):
-            raise ValueError(
-                f"value ({value}) must be between {self.options}."
-            )
+            raise ValueError(f"value ({value}) must be between {self.options}.")
         super().__set__(instance, value)
 
 
 class DropdownParameter(SelectionParameter):
-
     def _get_ipywidget(self, value):
         return widgets.Dropdown(
-            value=value,
-            options=self.options,
-            description=self.public_name + ':'
+            value=value, options=self.options, description=self.public_name + ":"
         )
 
 
 class SelectParameter(SelectionParameter):
-
     def _get_ipywidget(self, value):
         return widgets.Select(
-            value=value,
-            options=self.options,
-            description=self.public_name + ':'
+            value=value, options=self.options, description=self.public_name + ":"
         )
 
 
 class ComboboxParameter(SelectionParameter):
-
     def _get_ipywidget(self, value):
         return widgets.Combobox(
             value=value,
-            placeholder='Choose option',
+            placeholder="Choose option",
             options=self.options,
-            description=self.public_name + ':',
-            ensure_option=True
+            description=self.public_name + ":",
+            ensure_option=True,
         )
 
 
@@ -264,26 +255,15 @@ class BooleanParameter(WidgetParameter, ABC):
 
     def __set__(self, instance, value):
         if type(value) != bool:
-            raise ValueError(
-                f"value ({value}) must be a boolean: got a {type(value)}."
-            )
+            raise ValueError(f"value ({value}) must be a boolean: got a {type(value)}.")
         super().__set__(instance, value)
 
 
 class ToggleButtonParameter(BooleanParameter):
-
     def _get_ipywidget(self, value):
-        return widgets.ToggleButton(
-            value=value,
-            description=self.public_name
-        )
+        return widgets.ToggleButton(value=value, description=self.public_name)
 
 
 class CheckboxParameter(BooleanParameter):
-
     def _get_ipywidget(self, value):
-        return widgets.Checkbox(
-            value=value,
-            description=self.public_name,
-            indent=True
-        )
+        return widgets.Checkbox(value=value, description=self.public_name, indent=True)

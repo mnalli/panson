@@ -11,7 +11,7 @@ from pandas import Series
 from sc3nb.osc.osc_communication import Bundler
 from sc3nb.sc_objects.server import SCServer
 
-__all__ = 'Parameter', 'Sonification', 'bundle', 'GroupSonification'
+__all__ = "Parameter", "Sonification", "bundle", "GroupSonification"
 
 
 class Parameter:
@@ -30,7 +30,7 @@ class Parameter:
         # save name of the descriptor
         self.public_name = name
         # name of the attribute saved in the instance
-        self.private_name = '__' + name
+        self.private_name = "__" + name
 
     def __get__(self, instance, owner):
         # get value from private attribute of the instance
@@ -53,15 +53,10 @@ class Sonification(ABC):
     parameters of the sonification.
     """
 
-    __slots__ = '_lock', '__s'
+    __slots__ = "_lock", "__s"
 
     @final
-    def __init__(
-            self,
-            *args,
-            s: SCServer = None,
-            **kwargs
-    ):
+    def __init__(self, *args, s: SCServer = None, **kwargs):
         # lock making sonification operations atomic
         # we don't want values to change while process is being run
         self._lock = RLock()
@@ -194,6 +189,7 @@ def bundle(f):
     it. The bundling does not consider any server latency, making it suitable
     for decorating methods of concrete subclasses of Sonification.
     """
+
     @wraps(f)
     def bundle_decorator(*args) -> Bundler:
         with Bundler(send_on_exit=False) as bundler:
@@ -213,11 +209,12 @@ class GroupSonification:
         for son in sonifications:
             if not isinstance(son, Sonification):
                 raise ValueError(
-                    f"Class {type(son)} is not a subclass of Sonification.")
+                    f"Class {type(son)} is not a subclass of Sonification."
+                )
 
         s = reduce(
             (lambda s1, s2: s1 if s1 == s2 else None),
-            map(lambda son: son.s, sonifications)
+            map(lambda son: son.s, sonifications),
         )
         if not s:
             ValueError("Not all subsonification use the same server.")

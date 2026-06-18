@@ -31,7 +31,7 @@ from .views import (
 _LOGGER = logging.getLogger(__name__)
 
 
-__all__ = 'DataPlayer', 'RTDataPlayer', 'RTDataPlayerMT', 'RTDataPlayerMP'
+__all__ = "DataPlayer", "RTDataPlayer", "RTDataPlayerMT", "RTDataPlayerMP"
 
 # TODO: widgets are not updated when the data player state is changed programmatically
 
@@ -40,10 +40,10 @@ class _DataPlayerBase:
     """Base class for all data players."""
 
     def __init__(
-            self,
-            sonification: Union[Sonification, GroupSonification],
-            feature_display: RTFeatureDisplay = None,
-            video_player: Union[VideoPlayer, RTVideoPlayer] = None
+        self,
+        sonification: Union[Sonification, GroupSonification],
+        feature_display: RTFeatureDisplay = None,
+        video_player: Union[VideoPlayer, RTVideoPlayer] = None,
     ):
         self._son = sonification
         # run flag
@@ -67,7 +67,7 @@ class _DataPlayerBase:
             raise ValueError("Cannot change sonification while playing.")
         self._son = son
 
-    def record_start(self, path: str = 'record.wav', overwrite=False) -> None:
+    def record_start(self, path: str = "record.wav", overwrite=False) -> None:
         # TODO: this sends the recorder definition every time.
         # can we do better?
 
@@ -77,7 +77,8 @@ class _DataPlayerBase:
         if os.path.exists(path):
             if not overwrite:
                 raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
+                    f"{path} already exists. Use overwrite=True to overwrite it."
+                )
 
         self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
@@ -96,10 +97,10 @@ class DataPlayer(_DataPlayerBase):
     """Data player for pre-recorded data."""
 
     def __init__(
-            self,
-            sonification: Union[Sonification, GroupSonification],
-            feature_display: RTFeatureDisplay = None,
-            video_player: VideoPlayer = None
+        self,
+        sonification: Union[Sonification, GroupSonification],
+        feature_display: RTFeatureDisplay = None,
+        video_player: VideoPlayer = None,
     ):
         """
         :param sonification: sonification to use
@@ -140,11 +141,11 @@ class DataPlayer(_DataPlayerBase):
             self._rate = rate
 
     def load(
-            self,
-            data: Union[str, pd.DataFrame],
-            fps: Union[int, float] = None,
-            time_label: str = 'timestamp'
-    ) -> 'DataPlayer':
+        self,
+        data: Union[str, pd.DataFrame],
+        fps: Union[int, float] = None,
+        time_label: str = "timestamp",
+    ) -> "DataPlayer":
         """Load data into the data player.
 
         :param data: path to csv data or DataFrame object
@@ -174,7 +175,8 @@ class DataPlayer(_DataPlayerBase):
 
         if type(time_label) != str:
             raise ValueError(
-                f"time_key cannot be a {type(time_label)}: must be string.")
+                f"time_key cannot be a {type(time_label)}: must be string."
+            )
 
         if fps is None:
             self._time_label = time_label
@@ -186,7 +188,7 @@ class DataPlayer(_DataPlayerBase):
     @staticmethod
     def _load(df_path: str) -> pd.DataFrame:
         # TODO: support all format automatically
-        df = pd.read_csv(df_path, sep=r',\s*', engine='python')
+        df = pd.read_csv(df_path, sep=r",\s*", engine="python")
         return df
 
     def play(self):
@@ -194,14 +196,14 @@ class DataPlayer(_DataPlayerBase):
         if self._running:
             raise ValueError("Already playing!")
 
-        self._worker = Thread(name='player', target=self._play)
+        self._worker = Thread(name="player", target=self._play)
         self._worker.start()
 
     def _play(self):
         """Player thread."""
         assert self.rate != 0, "rate == 0"
 
-        _LOGGER.info('player thread started')
+        _LOGGER.info("player thread started")
 
         assert not self._running, "called while running"
         self._running = True
@@ -223,7 +225,6 @@ class DataPlayer(_DataPlayerBase):
 
         # iterate over dataframe rows, from the current element on
         for ptr, row in self._df.iloc[start_ptr::rate_sign].iterrows():
-
             if not self._running:
                 # pause was called
                 break
@@ -232,7 +233,9 @@ class DataPlayer(_DataPlayerBase):
                 target_time = t0 + (visited_rows * 1 / self._fps) / abs(self._rate)
                 visited_rows += 1
             else:
-                target_time = t0 + (row[self._time_label] - start_timestamp) / self._rate
+                target_time = (
+                    t0 + (row[self._time_label] - start_timestamp) / self._rate
+                )
 
             # process, bundle and send
             self._son.s.bundler(target_time).add(self._son.process(row)).send()
@@ -266,12 +269,12 @@ class DataPlayer(_DataPlayerBase):
 
         # this is relevant when the for loop ends naturally
         self._running = False
-        _LOGGER.info('player thread ended')
+        _LOGGER.info("player thread ended")
 
     def pause(self) -> None:
         """Pause playback."""
         if not self._running:
-            raise ValueError('Already paused!')
+            raise ValueError("Already paused!")
         # stop workin thread
         self._running = False
         self._worker.join()
@@ -299,16 +302,14 @@ class DataPlayer(_DataPlayerBase):
             max_time = self._df.index[-1] * 1 / self._fps
             if not (0 <= t <= max_time):
                 raise ValueError(
-                    f"Cannot set time to {t}. "
-                    f"Must be between 0 and {max_time}."
+                    f"Cannot set time to {t}. Must be between 0 and {max_time}."
                 )
             frame_idx = int(t * self._fps)
         else:
             max_time = self._df[self._time_label].iloc[-1]
             if not (0 <= t <= max_time):
                 raise ValueError(
-                    f"Cannot set time to {t}. "
-                    f"Must be between 0 and {max_time}."
+                    f"Cannot set time to {t}. Must be between 0 and {max_time}."
                 )
             timestamps = self._df[self._time_label]
             # seek with binary search
@@ -319,8 +320,7 @@ class DataPlayer(_DataPlayerBase):
     def _seek_idx(self, idx: int) -> None:
         if not (0 <= idx <= self._df.index[-1]):
             raise ValueError(
-                f"Invalid index {idx}. "
-                f"Must be in range [0, {self._df.index[-1]}]"
+                f"Invalid index {idx}. Must be in range [0, {self._df.index[-1]}]"
             )
 
         if self._video_player:
@@ -349,7 +349,6 @@ class DataPlayer(_DataPlayerBase):
 
         # use Bundler class to ignore server latency
         with Bundler(send_on_exit=False) as bundler:
-
             # if this allocates buffers or busses, the allocators will change
             # state even if the message is not sent to the server
             bundler.add(clone.init_bundle)
@@ -378,14 +377,14 @@ class DataPlayer(_DataPlayerBase):
         return bundler.messages()
 
     def export(
-            self,
-            out_file: str = 'out',
-            sample_rate: int = 44100,
-            header_format: str = "AIFF",
-            sample_format: str = "int16",
-            options: ServerOptions = None,
-            end_delay: float = 0.1,
-            rate: float = 1
+        self,
+        out_file: str = "out",
+        sample_rate: int = 44100,
+        header_format: str = "AIFF",
+        sample_format: str = "int16",
+        options: ServerOptions = None,
+        end_delay: float = 0.1,
+        rate: float = 1,
     ) -> subprocess.CompletedProcess:
         """Render current sonification using NRT synthesis.
 
@@ -404,19 +403,19 @@ class DataPlayer(_DataPlayerBase):
         if rate <= 0:
             raise ValueError("Rate must be positive.")
 
-        out_file = out_file + '.' + header_format.lower()
+        out_file = out_file + "." + header_format.lower()
 
         score = self._get_score(rate, end_delay)
 
         return Score.record_nrt(
             score,
             # TODO: how to make it on Windows?
-            "/tmp/score.osc",   # throw away score file
+            "/tmp/score.osc",  # throw away score file
             out_file,
             sample_rate=sample_rate,
             header_format=header_format,
             sample_format=sample_format,
-            options=options
+            options=options,
         )
 
     def _ipython_display_(self):
@@ -446,10 +445,11 @@ class DataLogger:
         if os.path.exists(path):
             if not overwrite:
                 raise FileExistsError(
-                    f'{path} already exists. Use overwrite=True to overwrite it.')
+                    f"{path} already exists. Use overwrite=True to overwrite it."
+                )
 
         self.logging = True
-        self._log_file = open(path, 'w')
+        self._log_file = open(path, "w")
         self._writer = csv.writer(self._log_file)
         self._first_line = True
 
@@ -470,7 +470,7 @@ class DataLogger:
         :param row: pandas series containing the datato log
         """
         if not self.logging:
-            raise ValueError('Start logger first!')
+            raise ValueError("Start logger first!")
 
         if self._first_line:
             self._writer.writerow(row.index)
@@ -483,10 +483,10 @@ class _RTDataPlayerBase(_DataPlayerBase):
     """Base class for real-time data players."""
 
     def __init__(
-            self,
-            sonification: Union[Sonification, GroupSonification],
-            feature_display: RTFeatureDisplay = None,
-            video_player: RTVideoPlayer = None
+        self,
+        sonification: Union[Sonification, GroupSonification],
+        feature_display: RTFeatureDisplay = None,
+        video_player: RTVideoPlayer = None,
     ):
         super().__init__(sonification, feature_display, video_player)
 
@@ -502,7 +502,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
         self._running = True
         self._t_start = time()
 
-    def record_start(self, path='record.wav', overwrite=False) -> None:
+    def record_start(self, path="record.wav", overwrite=False) -> None:
         """Start recorder.
 
         If a video player was specified, start its recorder in synch.
@@ -522,7 +522,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
         if self._video_player:
             self._video_player.stop()
 
-    def log_start(self, path='log.csv', overwrite=False) -> None:
+    def log_start(self, path="log.csv", overwrite=False) -> None:
         """Start logger.
 
         :param path: path of the output file
@@ -545,12 +545,12 @@ class RTDataPlayer(_RTDataPlayerBase):
     """Single stream real-time data player."""
 
     def __init__(
-            self,
-            stream: Stream,
-            sonification: Union[Sonification, GroupSonification],
-            feature_display: RTFeatureDisplay = None,
-            video_player: RTVideoPlayer = None,
-            timestamp: bool = False
+        self,
+        stream: Stream,
+        sonification: Union[Sonification, GroupSonification],
+        feature_display: RTFeatureDisplay = None,
+        video_player: RTVideoPlayer = None,
+        timestamp: bool = False,
     ):
         """
         :param stream: stream of data
@@ -574,11 +574,11 @@ class RTDataPlayer(_RTDataPlayerBase):
 
         self._stream.exec_open_hooks()
 
-        self._worker = Thread(name='listener', target=self._listen)
+        self._worker = Thread(name="listener", target=self._listen)
         self._worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('listener thread started')
+        _LOGGER.info("listener thread started")
 
         try:
             # send start bundle
@@ -590,10 +590,11 @@ class RTDataPlayer(_RTDataPlayerBase):
             header = pd.Index(header)
 
             if header.has_duplicates:
-                raise ValueError(f'header has duplicated values - {header[header.duplicated()].values}')
+                raise ValueError(
+                    f"header has duplicated values - {header[header.duplicated()].values}"
+                )
 
             for row in data_generator:
-
                 if not self._running:
                     # close was called
                     break
@@ -601,7 +602,7 @@ class RTDataPlayer(_RTDataPlayerBase):
                 series = pd.Series(row, header)
 
                 if self._timestamp:
-                    series['timestamp'] = time() - self._t_start
+                    series["timestamp"] = time() - self._t_start
 
                 # compute and send sonification information
                 self._son.s.bundler().add(self._son.process(series)).send()
@@ -618,12 +619,12 @@ class RTDataPlayer(_RTDataPlayerBase):
             self._son.s.bundler().add(self._son.stop()).send()
 
             self._stream.exec_close_hooks()
-            _LOGGER.info('listener thread ended')
+            _LOGGER.info("listener thread ended")
 
     def close(self) -> None:
         """End stream of data."""
         if not self._running:
-            raise ValueError('Already closed!')
+            raise ValueError("Already closed!")
 
         # stop workin thread
         self._running = False
@@ -649,13 +650,13 @@ class RTDataPlayerMT(_RTDataPlayerBase):
     """
 
     def __init__(
-            self,
-            streams: Sequence[Stream],
-            sonification: Union[Sonification, GroupSonification],
-            fps=None,
-            feature_display: RTFeatureDisplay = None,
-            video_player: RTVideoPlayer = None,
-            preprocessor: Type[Preprocessor] = None,
+        self,
+        streams: Sequence[Stream],
+        sonification: Union[Sonification, GroupSonification],
+        fps=None,
+        feature_display: RTFeatureDisplay = None,
+        video_player: RTVideoPlayer = None,
+        preprocessor: Type[Preprocessor] = None,
     ):
         """
         :param streams: sequence of stream objects
@@ -682,7 +683,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             fps = max([stream.fps for stream in streams])
         self._fps = fps
 
-        print(f'@ {fps} fps')
+        print(f"@ {fps} fps")
 
         self._preprocessor = preprocessor
         self._preprocessor_instance = None
@@ -716,14 +717,11 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         for stream in self._streams:
             stream.exec_open_hooks()
 
-        self._worker = Thread(name='listener', target=self._listen)
+        self._worker = Thread(name="listener", target=self._listen)
         # allocate one thread for each stream
         self._stream_workers = [
-            Thread(
-                name=f'{stream.name}-thread',
-                target=self._stream,
-                args=(i,)
-            ) for i, stream in enumerate(self._streams)
+            Thread(name=f"{stream.name}-thread", target=self._stream, args=(i,))
+            for i, stream in enumerate(self._streams)
         ]
 
         # allocate slots' memory
@@ -739,7 +737,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         self._worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('sonification thread started')
+        _LOGGER.info("sonification thread started")
 
         try:
             # send start bundle
@@ -753,17 +751,18 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             t0 = time()
 
             while self._running:
-
                 if i == 1:
                     # verify integrity only on the first iteration
-                    row = pd.concat(self._stream_slots, verify_integrity=True, copy=False)
+                    row = pd.concat(
+                        self._stream_slots, verify_integrity=True, copy=False
+                    )
                 else:
                     row = pd.concat(self._stream_slots, copy=False)
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
                 # TODO: check for overwriting
-                row['timestamp'] = time() - self._t_start
+                row["timestamp"] = time() - self._t_start
 
                 if self._preprocessor:
                     # preprocess row
@@ -788,19 +787,19 @@ class RTDataPlayerMT(_RTDataPlayerBase):
                 if waiting_time > 0:
                     sleep(waiting_time)
                 else:
-                    _LOGGER.warning(f'Thread {-waiting_time} s late')
+                    _LOGGER.warning(f"Thread {-waiting_time} s late")
 
         finally:
             self._running = False
             # send stop bundle
             self._son.s.bundler().add(self._son.stop()).send()
-            _LOGGER.info('sonification thread ended')
+            _LOGGER.info("sonification thread ended")
 
     def _stream(self, idx: int):
         assert 0 <= idx < len(self._streams)
 
         stream = self._streams[idx]
-        _LOGGER.info(f'stream {stream.name} opened')
+        _LOGGER.info(f"stream {stream.name} opened")
 
         try:
             data_generator = stream.open()
@@ -810,7 +809,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
 
             if header.has_duplicates:
                 raise ValueError(
-                    f'stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}'
+                    f"stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}"
                 )
 
             # get first data sample
@@ -820,7 +819,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
 
             # add stream timestamp
             # TODO: does this resize the array?
-            series[f'{stream.name}_timestamp'] = time() - self._t_start
+            series[f"{stream.name}_timestamp"] = time() - self._t_start
 
             self._stream_slots[idx] = series
 
@@ -828,14 +827,13 @@ class RTDataPlayerMT(_RTDataPlayerBase):
             self._first_sample_events[idx].set()
 
             for row in data_generator:
-
                 if not self._running:
                     break
 
                 series = pd.Series(row, header)
 
                 # add stream timestamp
-                series[f'{stream.name}_timestamp'] = time() - self._t_start
+                series[f"{stream.name}_timestamp"] = time() - self._t_start
 
                 self._stream_slots[idx] = series
 
@@ -844,11 +842,11 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         finally:
             self._running = False
             stream.exec_close_hooks()
-            _LOGGER.info(f'stream {stream.name} closed')
+            _LOGGER.info(f"stream {stream.name} closed")
 
     def close(self) -> None:
         if not self._running:
-            raise ValueError('Already closed!')
+            raise ValueError("Already closed!")
 
         # stop workin thread
         self._running = False
@@ -868,7 +866,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         self._stream_loggers[idx].start(path, overwrite)
 
     def log_stop_stream(self, idx: int) -> None:
-        """ Stop stream logging.
+        """Stop stream logging.
 
         :param idx: index of the stream
         """
@@ -893,13 +891,13 @@ class RTDataPlayerMP(_RTDataPlayerBase):
     """
 
     def __init__(
-            self,
-            streams: Sequence[Stream],
-            sonification: Union[Sonification, GroupSonification],
-            fps=None,
-            feature_display: RTFeatureDisplay = None,
-            video_player: RTVideoPlayer = None,
-            preprocessor: Type[Preprocessor] = None,
+        self,
+        streams: Sequence[Stream],
+        sonification: Union[Sonification, GroupSonification],
+        fps=None,
+        feature_display: RTFeatureDisplay = None,
+        video_player: RTVideoPlayer = None,
+        preprocessor: Type[Preprocessor] = None,
     ):
         """
         :param streams: sequence of stream objects
@@ -924,7 +922,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             fps = max([stream.fps for stream in streams])
         self._fps = fps
 
-        print(f'@ {fps} fps')
+        print(f"@ {fps} fps")
 
         self._preprocessor = preprocessor
         self._preprocessor_instance = None
@@ -958,7 +956,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             stream.exec_open_hooks()
 
         # the sonification is computed by a thread of the current process
-        self._worker = Thread(name='listener', target=self._listen)
+        self._worker = Thread(name="listener", target=self._listen)
 
         self._stream_processes = []
         self._stream_slots = []
@@ -975,7 +973,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
 
             proc = mp.Process(
                 target=self._stream,
-                args=(self._t_start, self._streams[i], slot, child_conn)
+                args=(self._t_start, self._streams[i], slot, child_conn),
             )
             self._stream_processes.append(proc)
 
@@ -986,7 +984,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
         self._worker.start()
 
     def _listen(self) -> None:
-        _LOGGER.info('sonification process started')
+        _LOGGER.info("sonification process started")
 
         try:
             # send start bundle
@@ -998,40 +996,40 @@ class RTDataPlayerMP(_RTDataPlayerBase):
 
             if header.has_duplicates:
                 raise ValueError(
-                    f'sonification process: merged header has duplicated values - {header[header.duplicated()].values}'
+                    f"sonification process: merged header has duplicated values - {header[header.duplicated()].values}"
                 )
 
             for conn in self._pipes:
                 # read start message from every pipe
                 msg = conn.recv()
-                assert msg == 'start'
+                assert msg == "start"
 
             i = 1
             t0 = time()
 
             while self._running:
-
                 for conn in self._pipes:
                     while conn.poll():
                         msg = conn.recv()
 
                         # child exited
-                        if msg == 'exit':
+                        if msg == "exit":
                             # finally is executed
                             return
 
                 # *copy* and store slots in local memory
                 stream_slots = [
-                    np.array(slot, dtype=stream.dtype) for stream, slot in zip(self.streams, self._stream_slots)
+                    np.array(slot, dtype=stream.dtype)
+                    for stream, slot in zip(self.streams, self._stream_slots)
                 ]
 
-                row = np.concatenate(stream_slots, casting='same_kind')
+                row = np.concatenate(stream_slots, casting="same_kind")
 
                 series = pd.Series(row, header)
 
                 # mandatory timestamp in case of multiple streams
                 # the shared start time is used as reference
-                series['timestamp'] = time() - self._t_start
+                series["timestamp"] = time() - self._t_start
 
                 if self._preprocessor:
                     # preprocess row
@@ -1056,7 +1054,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
                 if waiting_time > 0:
                     sleep(waiting_time)
                 else:
-                    _LOGGER.warning(f'Thread {-waiting_time} s late')
+                    _LOGGER.warning(f"Thread {-waiting_time} s late")
 
         finally:
             self._running = False
@@ -1064,14 +1062,16 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             self._son.s.bundler().add(self._son.stop()).send()
             # send stop message to every process
             for conn in self._pipes:
-                conn.send('stop')
+                conn.send("stop")
 
-            _LOGGER.info('sonification thread ended')
+            _LOGGER.info("sonification thread ended")
 
     @staticmethod
-    def _stream(t_start, stream: Stream, slot: mp.Array, conn: mp.connection.Connection):
+    def _stream(
+        t_start, stream: Stream, slot: mp.Array, conn: mp.connection.Connection
+    ):
 
-        _LOGGER.info(f'stream {stream.name} opened')
+        _LOGGER.info(f"stream {stream.name} opened")
 
         try:
             data_generator = stream.open()
@@ -1079,14 +1079,14 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             header = next(data_generator)
             # insert timestamp label at head position
             # np.insert does not resize string types of the array
-            header = np.concatenate(([f'{stream.name}_timestamp'], header))
+            header = np.concatenate(([f"{stream.name}_timestamp"], header))
 
             # we can use object as dtype as long as the header is shared through message passing
             header = pd.Index(header)
 
             if header.has_duplicates:
                 raise ValueError(
-                    f'stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}'
+                    f"stream {stream.name}: header has duplicated values - {header[header.duplicated()].values}"
                 )
 
             # send header
@@ -1102,14 +1102,13 @@ class RTDataPlayerMP(_RTDataPlayerBase):
             slot[1:] = row
 
             # signal event to main thread
-            conn.send('start')
+            conn.send("start")
 
             for row in data_generator:
-
                 while conn.poll():
                     msg = conn.recv()
 
-                    if msg == 'stop':
+                    if msg == "stop":
                         # finally is executed
                         return
 
@@ -1123,13 +1122,13 @@ class RTDataPlayerMP(_RTDataPlayerBase):
                 #     self._stream_loggers[idx].feed(series)
         finally:
             # if an exception occurs, it will be printed to stderr by default
-            conn.send('exit')
+            conn.send("exit")
             stream.exec_close_hooks()
-            _LOGGER.info(f'stream {stream.name} closed')
+            _LOGGER.info(f"stream {stream.name} closed")
 
     def close(self) -> None:
         if not self._running:
-            raise ValueError('Already closed!')
+            raise ValueError("Already closed!")
 
         # stop workin thread
         self._running = False

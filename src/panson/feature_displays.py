@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.animation import FuncAnimation
 
-__all__ = 'RTFeatureDisplay',
+__all__ = ("RTFeatureDisplay",)
 
-plt.style.use('fivethirtyeight')
+plt.style.use("fivethirtyeight")
 
 # TODO: refactor using draw_artists?
 
@@ -19,6 +19,7 @@ class FeatureDisplay:
     It is meant to be used together with DataPlayer so that the data can be
     visually navigated while the sonification is played.
     """
+
     # TODO
     pass
 
@@ -51,7 +52,7 @@ class RTFeatureDisplay:
 
         self.anim = None
 
-    def show(self, fps=30) -> 'RTFeatureDisplay':
+    def show(self, fps=30) -> "RTFeatureDisplay":
         """Show the plot.
 
         This will use the set matplotlib backend. For now only "notebook" is
@@ -63,16 +64,18 @@ class RTFeatureDisplay:
         self.fig, self.ax = plt.subplots(1)
 
         # draw marker line
-        self.ax.axvline(x=0, color='r', ls='-', lw=1)
+        self.ax.axvline(x=0, color="r", ls="-", lw=1)
 
         for key, y in self.ys.items():
-            self.ax.plot(self.x, y, label=f'{key}')
+            self.ax.plot(self.x, y, label=f"{key}")
 
         # store into field to avoid garbage collection of the animation
-        self.anim = FuncAnimation(self.fig, self._animate, interval=1000/fps, cache_frame_data=False)
+        self.anim = FuncAnimation(
+            self.fig, self._animate, interval=1000 / fps, cache_frame_data=False
+        )
 
         # add automatic padding to plot
-        self.ax.legend(loc='upper left')
+        self.ax.legend(loc="upper left")
 
         plt.tight_layout()
         plt.show()
@@ -84,13 +87,13 @@ class RTFeatureDisplay:
         self.ax.clear()
 
         # draw marker line
-        self.ax.axvline(x=0, color='r', ls='-', lw=1)
+        self.ax.axvline(x=0, color="r", ls="-", lw=1)
 
         for key, y in self.ys.items():
-            self.ax.plot(self.x, y, label=f'{key}')
+            self.ax.plot(self.x, y, label=f"{key}")
 
         # display legend in static location
-        self.ax.legend(loc='upper left')
+        self.ax.legend(loc="upper left")
 
         plt.tight_layout()
 

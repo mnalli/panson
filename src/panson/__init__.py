@@ -14,11 +14,11 @@ from .video_players import *
 from .widget_parameters import *
 
 __all__ = (
-    sonification.__all__ +
-    widget_parameters.__all__ +
-    data_players.__all__ +
-    feature_displays.__all__ +
-    video_players.__all__ +
-    streams.__all__ +
-    preprocessors.__all__
+    sonification.__all__
+    + widget_parameters.__all__
+    + data_players.__all__
+    + feature_displays.__all__
+    + video_players.__all__
+    + streams.__all__
+    + preprocessors.__all__
 )

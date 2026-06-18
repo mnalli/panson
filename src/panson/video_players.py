@@ -26,11 +26,10 @@ import pyqtgraph as pg
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import QObject, pyqtSignal
 
-__all__ = 'VideoPlayer', 'RTVideoPlayer'
+__all__ = "VideoPlayer", "RTVideoPlayer"
 
 
 class Communicate(QObject):
-
     updateImg = pyqtSignal(np.ndarray)
 
 
@@ -38,18 +37,19 @@ class Communicate(QObject):
 # TODO: refactor to have consistent communication between client and server classes
 # TODO: bring this component out of the framework in an independent project?
 
+
 class VideoPlayerServer:
     """This class encapsulate the logic of the behaviour of the video player."""
 
     # TODO: implement playback logic in VideoPlayer
 
     def __init__(
-            self,
-            conn: mp.connection.Connection,
-            file_path: str,
-            frame_times_path: str = None,
-            fps=None,
-            on_top: bool = True
+        self,
+        conn: mp.connection.Connection,
+        file_path: str,
+        frame_times_path: str = None,
+        fps=None,
+        on_top: bool = True,
     ):
         """
         :param conn: pipe end used for communication
@@ -69,31 +69,31 @@ class VideoPlayerServer:
         self._video = pims.Video(file_path)
 
         if frame_times_path is None:
-            print('No frame times specified')
+            print("No frame times specified")
 
             if fps is None:
-                print('No FPS specified')
+                print("No FPS specified")
                 self._fps = None
 
-                frame_times_path = file_path + '.csv'
-                print(f'Loading default frame times from {frame_times_path}')
+                frame_times_path = file_path + ".csv"
+                print(f"Loading default frame times from {frame_times_path}")
 
                 try:
-                    self._frame_times = np.loadtxt(frame_times_path, delimiter=',')
-                    print('Frame times loaded.')
+                    self._frame_times = np.loadtxt(frame_times_path, delimiter=",")
+                    print("Frame times loaded.")
                 except OSError:
-                    print('No default frame times found: seek_time will not work.')
+                    print("No default frame times found: seek_time will not work.")
                     self._frame_times = None
 
             else:
-                print(f'Using static fps {fps}')
+                print(f"Using static fps {fps}")
                 self._fps = fps
                 self._frame_times = None
         else:
-            print(f'Loading frame times from {frame_times_path}')
+            print(f"Loading frame times from {frame_times_path}")
             self._frame_times = np.loadtxt(frame_times_path)
             if fps:
-                print(f'Ignoring specified fps {fps}')
+                print(f"Ignoring specified fps {fps}")
                 self._fps = None
 
         # threads
@@ -108,7 +108,7 @@ class VideoPlayerServer:
         # GUI
         self.app = QtWidgets.QApplication([])
         self._win = QtWidgets.QMainWindow()
-        self._win.setWindowTitle(f'File: {file_path}')
+        self._win.setWindowTitle(f"File: {file_path}")
 
         # window always on top
         if on_top:
@@ -172,9 +172,7 @@ class VideoPlayerServer:
         # print('s', idx)
 
         if not (0 <= idx < len(self._video)):
-            raise ValueError(
-                f"idx ({idx}) must be between 0 and {len(self._video)}"
-            )
+            raise ValueError(f"idx ({idx}) must be between 0 and {len(self._video)}")
 
         if idx == self._curr_frame_idx:
             return
@@ -188,17 +186,13 @@ class VideoPlayerServer:
         if self._frame_times is not None:
             max_time = self._frame_times[-1, 1]
             if t > max_time:
-                raise ValueError(
-                    f"t == {t} is greater than maximum time {max_time}"
-                )
+                raise ValueError(f"t == {t} is greater than maximum time {max_time}")
             # find timestamp with binary search
             idx = np.searchsorted(self._frame_times[:, 1], t)
         elif self._fps is not None:
             max_time = len(self._video) / self._fps
             if t > max_time:
-                raise ValueError(
-                    f"t == {t} is greater than maximum time {max_time}"
-                )
+                raise ValueError(f"t == {t} is greater than maximum time {max_time}")
             idx = int(t * self._fps)
         else:
             raise ValueError(
@@ -216,11 +210,11 @@ class VideoPlayer:
     """This class is a proxy for the VideoPlayerServer class."""
 
     def __init__(
-            self,
-            file_path: str,
-            frame_times_path: str = None,
-            fps=None,
-            on_top: bool = True
+        self,
+        file_path: str,
+        frame_times_path: str = None,
+        fps=None,
+        on_top: bool = True,
     ):
         """
         :param file_path: video file
@@ -251,15 +245,15 @@ class VideoPlayer:
 
     def seek(self, idx: int):
         """Display frame of the specified index."""
-        self._conn.send(('seek', idx))
+        self._conn.send(("seek", idx))
 
     def seek_time(self, t: float):
         """Display frame that is closer to the specified time (seconds)."""
-        self._conn.send(('seek_time', t))
+        self._conn.send(("seek_time", t))
 
     def quit(self):
         """Quit player and terminate process."""
-        self._conn.send(('quit',))
+        self._conn.send(("quit",))
         self._conn.close()
 
     def __del__(self):
@@ -274,14 +268,14 @@ class RTVideoPlayerServer:
     """
 
     def __init__(
-            self,
-            conn: mp.connection.Connection,
-            device: int = 0,
-            width: int = None,
-            height: int = None,
-            fps: int = None,
-            enumerate_records: bool = True,
-            on_top: bool = True
+        self,
+        conn: mp.connection.Connection,
+        device: int = 0,
+        width: int = None,
+        height: int = None,
+        fps: int = None,
+        enumerate_records: bool = True,
+        on_top: bool = True,
     ):
         """
         :param conn: pipe end used for communication
@@ -309,8 +303,8 @@ class RTVideoPlayerServer:
         self._running = False
 
         # file name
-        self._out_file_prefix = 'record'
-        self._out_file_suffix = 'avi'
+        self._out_file_prefix = "record"
+        self._out_file_suffix = "avi"
 
         self._device_id = device
 
@@ -327,7 +321,7 @@ class RTVideoPlayerServer:
         # GUI
         self.app = QtWidgets.QApplication([])
         self._win = QtWidgets.QMainWindow()
-        self._win.setWindowTitle(f'Camera: device {device}')
+        self._win.setWindowTitle(f"Camera: device {device}")
 
         # black image
         self._img = pg.ImageItem()
@@ -348,7 +342,7 @@ class RTVideoPlayerServer:
         if on_top:
             self._win.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 
-        self._fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        self._fourcc = cv2.VideoWriter_fourcc(*"XVID")
         self._writer: cv2.VideoWriter = None
 
         # capture device
@@ -422,7 +416,11 @@ class RTVideoPlayerServer:
 
     def _start_recording(self, t_start):
         if self._enumerate_records:
-            self._fname = "%s-%03d.%s" % (self._out_file_prefix, self._run_counter, self._out_file_suffix)
+            self._fname = "%s-%03d.%s" % (
+                self._out_file_prefix,
+                self._run_counter,
+                self._out_file_suffix,
+            )
             self._run_counter += 1
         else:
             self._fname = self._out_file_prefix + "." + self._out_file_suffix
@@ -431,11 +429,11 @@ class RTVideoPlayerServer:
             self._fname, self._fourcc, self._fps, (self._width, self._height)
         )
 
-        self._log_file = open(f"{self._fname}.csv", 'w')
+        self._log_file = open(f"{self._fname}.csv", "w")
         # TODO: add float format precision?
         self._log_writer = csv.writer(self._log_file)
         # write header
-        self._log_writer.writerow(['frame_number', 'timestamp'])
+        self._log_writer.writerow(["frame_number", "timestamp"])
 
         self._frame_counter = 0
         self._t0 = t_start
@@ -453,7 +451,7 @@ class RTVideoPlayerServer:
 
         Set also suffix (and thus video file containter format).
         """
-        self._out_file_prefix, self._out_file_suffix = name.split('.')
+        self._out_file_prefix, self._out_file_suffix = name.split(".")
 
     def autoenum(self, val: bool):
         """Enable or disable auto enumeration of files."""
@@ -483,13 +481,13 @@ class RTVideoPlayer:
     """This class is a proxy for the RTVideoPlayerServer class."""
 
     def __init__(
-            self,
-            device: int = 0,
-            width: int = None,
-            height: int = None,
-            fps: int = None,
-            enumerate_records: bool = True,
-            on_top: bool = True
+        self,
+        device: int = 0,
+        width: int = None,
+        height: int = None,
+        fps: int = None,
+        enumerate_records: bool = True,
+        on_top: bool = True,
     ):
         """
         :param device: number of the device to be opened
@@ -522,11 +520,11 @@ class RTVideoPlayer:
 
     def set_auto_enum_files(self, val: bool):
         """Enable or disable auto enumeration of recording files."""
-        self._conn.send(('autoenum', {val}))
+        self._conn.send(("autoenum", {val}))
 
     def set_filename(self, filename: str):
         """Set file name for recordings."""
-        self._conn.send(('filename', filename))
+        self._conn.send(("filename", filename))
 
     def record(self, t_start):
         """Start recorder.
@@ -534,14 +532,14 @@ class RTVideoPlayer:
         :param t_start: reference timestamp
             used to synchronize logs and recordings
         """
-        self._conn.send(('record', t_start))
+        self._conn.send(("record", t_start))
 
     def stop(self):
-        self._conn.send(('stop',))
+        self._conn.send(("stop",))
 
     def quit(self):
         """Quit player and terminate process."""
-        self._conn.send(('quit',))
+        self._conn.send(("quit",))
         self._conn.close()
 
     def __del__(self):

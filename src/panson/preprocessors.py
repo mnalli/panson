@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-__all__ = 'Preprocessor',
+__all__ = ("Preprocessor",)
 
 # TODO: with this mechanism, the user is forced to use a constructor without
 # arguments. We would want the constructor to support parameters.
