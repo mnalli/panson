@@ -1,6 +1,6 @@
+from collections.abc import Sequence
 from itertools import count
 from math import inf
-from typing import Sequence
 
 import matplotlib.pyplot as plt
 import pandas as pd

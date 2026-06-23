@@ -220,7 +220,7 @@ class SelectionParameter(WidgetParameter, ABC):
         self.options = options
 
     def __set__(self, instance, value):
-        if not (value in self.options):
+        if value not in self.options:
             raise ValueError(f"value ({value}) must be between {self.options}.")
         super().__set__(instance, value)
 

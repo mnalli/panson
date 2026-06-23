@@ -2,7 +2,8 @@ import csv
 import logging
 import math
 import time
-from typing import Any, Callable, Generator, Tuple, Type, final
+from collections.abc import Callable, Generator
+from typing import Any, final
 
 import numpy as np
 import pandas as pd
@@ -34,7 +35,7 @@ class Stream:
         datagen=None,
         args=(),
         kwargs=None,
-        preprocessor: Type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] = None,
     ):
         """
         :param name: unique name for the stream instance
@@ -60,8 +61,8 @@ class Stream:
         self.datagen(*args, **kwargs)
 
         # hooks
-        self._open_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
-        self._close_hooks: list[Tuple[Callable[..., None], Any, Any]] = []
+        self._open_hooks: list[tuple[Callable[..., None], Any, Any]] = []
+        self._close_hooks: list[tuple[Callable[..., None], Any, Any]] = []
 
         # set by test function
         self._sample_size = None
@@ -73,24 +74,21 @@ class Stream:
         """Size of numpy array yielded by the generator."""
         if self._sample_size is None:
             raise ValueError("Initialize length first by calling the test method.")
-        else:
-            return self._sample_size
+        return self._sample_size
 
     @property
     def dtype(self):
         """dtype of numpy array yielded by the generator."""
         if self._dtype is None:
             raise ValueError("Initialize dtype first by calling the test method.")
-        else:
-            return self._dtype
+        return self._dtype
 
     @property
     def fps(self):
         """Frame rate of the stream."""
         if self._fps is None:
             raise ValueError("Initialize fps first by calling the test method.")
-        else:
-            return self._fps
+        return self._fps
 
     @fps.setter
     def fps(self, value):
@@ -163,10 +161,9 @@ class Stream:
         """
         if self._preprocessor is None:
             return self.datagen(*self._args, **self._kwargs)
-        else:
-            # create fresh preprocessor instance
-            self._preprocessor_instance = self._preprocessor()
-            return self._datagen_preprocessor_wrapper(*self._args, **self._kwargs)
+        # create fresh preprocessor instance
+        self._preprocessor_instance = self._preprocessor()
+        return self._datagen_preprocessor_wrapper(*self._args, **self._kwargs)
 
     def add_open_hook(self, hook: Callable[..., None], *args, **kwargs) -> "Stream":
         """Add hook to be executed when the stream is opened.
@@ -191,7 +188,7 @@ class Stream:
         return self
 
     @staticmethod
-    def _exec_hooks(hooks: list[Tuple[Callable[..., None], Any, Any]]):
+    def _exec_hooks(hooks: list[tuple[Callable[..., None], Any, Any]]):
         """Execute hooks.
 
         :param hooks
@@ -286,7 +283,7 @@ class CsvFifo(Stream):
 
     @staticmethod
     def datagen(fifo_path: str) -> Generator:
-        with open(fifo_path, "r") as fifo:
+        with open(fifo_path) as fifo:
             # the reader attempts to execute fifo.readline()
             # blocks if there are no lines
             reader = csv.reader(fifo, skipinitialspace=True)

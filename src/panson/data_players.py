@@ -6,9 +6,9 @@ import os
 import subprocess
 import threading
 import weakref
+from collections.abc import Sequence
 from threading import Thread
 from time import sleep, time
-from typing import Dict, List, Sequence, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -41,9 +41,9 @@ class _DataPlayerBase:
 
     def __init__(
         self,
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         feature_display: RTFeatureDisplay = None,
-        video_player: Union[VideoPlayer, RTVideoPlayer] = None,
+        video_player: VideoPlayer | RTVideoPlayer = None,
     ):
         self._son = sonification
         # run flag
@@ -57,11 +57,11 @@ class _DataPlayerBase:
         self._video_player = video_player
 
     @property
-    def sonification(self) -> Union[Sonification, GroupSonification]:
+    def sonification(self) -> Sonification | GroupSonification:
         return self._son
 
     @sonification.setter
-    def sonification(self, son: Union[Sonification, GroupSonification]) -> None:
+    def sonification(self, son: Sonification | GroupSonification) -> None:
         if self._running:
             # the sonification must be stopped before changing it
             raise ValueError("Cannot change sonification while playing.")
@@ -98,7 +98,7 @@ class DataPlayer(_DataPlayerBase):
 
     def __init__(
         self,
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         feature_display: RTFeatureDisplay = None,
         video_player: VideoPlayer = None,
     ):
@@ -124,11 +124,11 @@ class DataPlayer(_DataPlayerBase):
         return self._ptr
 
     @property
-    def rate(self) -> Union[int, float]:
+    def rate(self) -> int | float:
         return self._rate
 
     @rate.setter
-    def rate(self, rate: Union[int, float]):
+    def rate(self, rate: int | float):
         if rate == 0:
             raise ValueError("Cannot set rate to 0.")
 
@@ -142,8 +142,8 @@ class DataPlayer(_DataPlayerBase):
 
     def load(
         self,
-        data: Union[str, pd.DataFrame],
-        fps: Union[int, float] = None,
+        data: str | pd.DataFrame,
+        fps: int | float = None,
         time_label: str = "timestamp",
     ) -> "DataPlayer":
         """Load data into the data player.
@@ -279,7 +279,7 @@ class DataPlayer(_DataPlayerBase):
         self._running = False
         self._worker.join()
 
-    def seek(self, target: Union[int, float]) -> None:
+    def seek(self, target: int | float) -> None:
         """Seek different data point.
 
         :param target: index of data or time
@@ -340,7 +340,7 @@ class DataPlayer(_DataPlayerBase):
         else:
             self._ptr = idx
 
-    def _get_score(self, rate, end_delay) -> Dict[float, List[scn.OSCMessage]]:
+    def _get_score(self, rate, end_delay) -> dict[float, list[scn.OSCMessage]]:
 
         # shallow copy: this works only if the user redefines object that would
         # otherwise be modified in place. The structure of the framework should
@@ -484,7 +484,7 @@ class _RTDataPlayerBase(_DataPlayerBase):
 
     def __init__(
         self,
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
     ):
@@ -547,7 +547,7 @@ class RTDataPlayer(_RTDataPlayerBase):
     def __init__(
         self,
         stream: Stream,
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
         timestamp: bool = False,
@@ -652,11 +652,11 @@ class RTDataPlayerMT(_RTDataPlayerBase):
     def __init__(
         self,
         streams: Sequence[Stream],
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         fps=None,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
-        preprocessor: Type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] = None,
     ):
         """
         :param streams: sequence of stream objects
@@ -893,11 +893,11 @@ class RTDataPlayerMP(_RTDataPlayerBase):
     def __init__(
         self,
         streams: Sequence[Stream],
-        sonification: Union[Sonification, GroupSonification],
+        sonification: Sonification | GroupSonification,
         fps=None,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
-        preprocessor: Type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] = None,
     ):
         """
         :param streams: sequence of stream objects
