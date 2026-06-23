@@ -2,11 +2,11 @@ import copy
 import csv
 import logging
 import multiprocessing as mp
-import os
 import subprocess
 import threading
 import weakref
 from collections.abc import Sequence
+from pathlib import Path
 from threading import Thread
 from time import sleep, time
 
@@ -74,11 +74,10 @@ class _DataPlayerBase:
         if self._recorder is not None:
             raise ValueError("Recorder already working.")
 
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f"{path} already exists. Use overwrite=True to overwrite it."
-                )
+        if Path(path).exists() and not overwrite:
+            raise FileExistsError(
+                f"{path} already exists. Use overwrite=True to overwrite it."
+            )
 
         self._recorder = scn.Recorder(path=path, server=self._son.s)
         # send start bundle to the server
@@ -157,9 +156,9 @@ class DataPlayer(_DataPlayerBase):
         if self._running:
             raise ValueError("Cannot load data while playing.")
 
-        if type(data) == str:
+        if isinstance(data, str):
             self._df = self._load(data)
-        elif type(data) == pd.DataFrame:
+        elif isinstance(data, pd.DataFrame):
             self._df = data
         else:
             raise ValueError(
@@ -173,7 +172,7 @@ class DataPlayer(_DataPlayerBase):
         self._fps = fps
         self._ptr = 0
 
-        if type(time_label) != str:
+        if not isinstance(time_label, str):
             raise ValueError(
                 f"time_key cannot be a {type(time_label)}: must be string."
             )
@@ -188,8 +187,7 @@ class DataPlayer(_DataPlayerBase):
     @staticmethod
     def _load(df_path: str) -> pd.DataFrame:
         # TODO: support all format automatically
-        df = pd.read_csv(df_path, sep=r",\s*", engine="python")
-        return df
+        return pd.read_csv(df_path, sep=r",\s*", engine="python")
 
     def play(self):
         """Start playback."""
@@ -244,10 +242,7 @@ class DataPlayer(_DataPlayerBase):
                 self._feature_display.feed(row)
 
             if self._video_player:
-                if self._fps:
-                    t = ptr / self._fps
-                else:
-                    t = row[self._time_label]
+                t = ptr / self._fps if self._fps else row[self._time_label]
 
                 self._video_player.seek_time(t)
 
@@ -420,10 +415,7 @@ class DataPlayer(_DataPlayerBase):
 
     def _ipython_display_(self):
         if self._widget_view is None:
-            if self._df is None:
-                max_idx = 0
-            else:
-                max_idx = self._df.index[-1]
+            max_idx = 0 if self._df is None else self._df.index[-1]
             self._widget_view = DataPlayerWidgetView(weakref.proxy(self), max_idx)
 
         display(self._widget_view)
@@ -442,11 +434,10 @@ class DataLogger:
         if self.logging:
             raise ValueError("Already logging.")
 
-        if os.path.exists(path):
-            if not overwrite:
-                raise FileExistsError(
-                    f"{path} already exists. Use overwrite=True to overwrite it."
-                )
+        if Path(path).exists() and not overwrite:
+            raise FileExistsError(
+                f"{path} already exists. Use overwrite=True to overwrite it."
+            )
 
         self.logging = True
         self._log_file = open(path, "w")

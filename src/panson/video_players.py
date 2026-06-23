@@ -158,7 +158,7 @@ class VideoPlayerServer:
 
             try:
                 self.__getattribute__(cmd[0])(*cmd[1:])
-            except:
+            except:  # noqa: E722
                 # capture and print all exception not to make the server crash
                 traceback.print_exc()
 
@@ -381,7 +381,7 @@ class RTVideoPlayerServer:
 
             try:
                 self.__getattribute__(cmd[0])(*cmd[1:])
-            except:
+            except:  # noqa: E722
                 # capture and print all exception not to make the server crash
                 traceback.print_exc()
 

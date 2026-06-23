@@ -214,10 +214,10 @@ class GroupSonification:
 
         s = reduce(
             (lambda s1, s2: s1 if s1 == s2 else None),
-            map(lambda son: son.s, sonifications),
+            (son.s for son in sonifications),
         )
         if not s:
-            ValueError("Not all subsonification use the same server.")
+            raise ValueError("Not all subsonification use the same server.")
 
         self.s = s
         self.sonifications = sonifications

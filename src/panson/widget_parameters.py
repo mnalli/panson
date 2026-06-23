@@ -254,7 +254,7 @@ class BooleanParameter(WidgetParameter, ABC):
     """Base class for all boolean widget parameters."""
 
     def __set__(self, instance, value):
-        if type(value) != bool:
+        if not isinstance(value, bool):
             raise ValueError(f"value ({value}) must be a boolean: got a {type(value)}.")
         super().__set__(instance, value)
 
