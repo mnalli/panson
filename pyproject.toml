@@ -57,7 +57,7 @@ dependencies = [
   # pims.Video() --> "ImportError: This reader requires PyAV, MoviePy, or ImageIO"
   "av==15.1.0",
 
-  # TODO: find a way to remove this dependency
+  # FIXME: import error (or segmentation fault)
   "opencv-python-headless==4.8.1.78"
 ]
 
