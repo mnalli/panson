@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 import pims
 import pyqtgraph as pg
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject, pyqtSignal
 
 __all__ = "VideoPlayer", "RTVideoPlayer"
@@ -49,7 +49,6 @@ class VideoPlayerServer:
         file_path: str,
         frame_times_path: str = None,
         fps=None,
-        on_top: bool = True,
     ):
         """
         :param conn: pipe end used for communication
@@ -59,7 +58,6 @@ class VideoPlayerServer:
             be considered at file_path + '.csv'
         :param fps: static fps value
             considered if frame times is not available
-        :param on_top: wether to display the player window as "always on top"
         """
         # pipe end
         self._conn = conn
@@ -109,10 +107,6 @@ class VideoPlayerServer:
         self.app = QtWidgets.QApplication([])
         self._win = QtWidgets.QMainWindow()
         self._win.setWindowTitle(f"File: {file_path}")
-
-        # window always on top
-        if on_top:
-            self._win.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 
         # black image
         self._img = pg.ImageItem()
@@ -214,7 +208,6 @@ class VideoPlayer:
         file_path: str,
         frame_times_path: str = None,
         fps=None,
-        on_top: bool = True,
     ):
         """
         :param file_path: video file
@@ -223,12 +216,11 @@ class VideoPlayer:
             be considered at file_path + '.csv'
         :param fps: static fps value
             considered if frame times is not available
-        :param on_top: wether to display the player window as "always on top"
         """
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn, file_path, frame_times_path, fps, on_top),
+            args=(child_conn, file_path, frame_times_path, fps),
         )
 
         # start server process
@@ -275,7 +267,6 @@ class RTVideoPlayerServer:
         height: int = None,
         fps: int = None,
         enumerate_records: bool = True,
-        on_top: bool = True,
     ):
         """
         :param conn: pipe end used for communication
@@ -287,7 +278,6 @@ class RTVideoPlayerServer:
         :param fps: desired frame rate
             if not available, a valid value will be set
         :param enumerate_records: auto enumeration of recording files
-        :param on_top: wether to display the player window as "always on top"
         """
         # pipe end
         self._conn = conn
@@ -337,10 +327,6 @@ class RTVideoPlayerServer:
         self._view_box.addItem(self._img)
 
         self._win.setCentralWidget(self._img_gv)
-
-        # window always on top
-        if on_top:
-            self._win.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 
         self._fourcc = cv2.VideoWriter_fourcc(*"XVID")
         self._writer: cv2.VideoWriter = None
@@ -487,7 +473,6 @@ class RTVideoPlayer:
         height: int = None,
         fps: int = None,
         enumerate_records: bool = True,
-        on_top: bool = True,
     ):
         """
         :param device: number of the device to be opened
@@ -498,12 +483,11 @@ class RTVideoPlayer:
         :param fps: desired frame rate
             if not available, a valid value will be set
         :param enumerate_records: auto enumeration of recording files
-        :param on_top: wether to display the player window as "always on top"
         """
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn, device, width, height, fps, enumerate_records, on_top),
+            args=(child_conn, device, width, height, fps, enumerate_records),
         )
 
         # start server process
