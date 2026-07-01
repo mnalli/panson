@@ -57,7 +57,7 @@ dependencies = [
   # pims.Video() --> "ImportError: This reader requires PyAV, MoviePy, or ImageIO"
   "av==15.1.0",
 
-  "opencv-python-headless~=4.10.0.84"
+  "opencv-python~=4.10.0.84"
 ]
 
 [project.urls]
