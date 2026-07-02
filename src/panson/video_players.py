@@ -286,9 +286,6 @@ class RTVideoPlayerServer:
         self._receiver_thread = threading.Thread(target=self._receiver)
         self._recorder_thread = threading.Thread(target=self._recorder)
 
-        self.c = Communicate()
-        self.c.updateImg.connect(self._update_img)
-
         # playback running
         self._running = False
 
@@ -307,26 +304,6 @@ class RTVideoPlayerServer:
         self._frame_counter = None
         self._frametimes = None
         self._fname = None
-
-        # GUI
-        self.app = QtWidgets.QApplication([])
-        self._win = QtWidgets.QMainWindow()
-        self._win.setWindowTitle(f"Camera: device {device}")
-
-        # black image
-        self._img = pg.ImageItem()
-        self._img.setAutoDownsample(True)
-
-        self._img_gv = pg.GraphicsView()
-        self._view_box = pg.ViewBox()
-        self._view_box.setAspectLocked()
-        self._view_box.invertY(True)
-
-        self._img_gv.setCentralItem(self._view_box)
-
-        self._view_box.addItem(self._img)
-
-        self._win.setCentralWidget(self._img_gv)
 
         self._fourcc = cv2.VideoWriter_fourcc(*"XVID")
         self._writer: cv2.VideoWriter = None
@@ -348,13 +325,6 @@ class RTVideoPlayerServer:
         self._fps = self._capture.get(cv2.CAP_PROP_FPS)
 
         print(f"{self._width} x {self._height} @ {self._fps} fps")
-
-        # TODO: relative window position
-        self._win.setGeometry(1000, 0, self._width, self._height)
-        self._win.show()
-
-    def _update_img(self, img):
-        self._img.setImage(img)
 
     def start(self):
         self._running = True
@@ -382,7 +352,12 @@ class RTVideoPlayerServer:
                 self._running = False
                 break
 
-            self.c.updateImg.emit(frame[:, :, (2, 1, 0)].swapaxes(0, 1))
+            # display
+            cv2.imshow(f"Camera: device {self._device_id}", frame)
+
+            # FIXME: how to establish a sensible value?
+            # TODO: move after recording logic?
+            cv2.waitKey(33)
 
             if self._recording:
                 # log video frame
@@ -394,11 +369,11 @@ class RTVideoPlayerServer:
         if self._recording:
             self._stop_recording()
 
+        # release video capture object
         self._capture.release()
-        print("Release capture")
 
-        # end main loop
-        self.app.exit()
+        # Closes all the frames
+        cv2.destroyAllWindows()    # TODO: is it correct?
 
     def _start_recording(self, t_start):
         if self._enumerate_records:
@@ -499,8 +474,6 @@ class RTVideoPlayer:
         vp = RTVideoPlayerServer(*args)
         # start threads
         vp.start()
-        # start main loop
-        sys.exit(vp.app.exec())
 
     def set_auto_enum_files(self, val: bool):
         """Enable or disable auto enumeration of recording files."""
