@@ -161,7 +161,7 @@ class VideoPlayerServer:
 
     # COMMANDS
 
-    def seek(self, idx: int):
+    def _seek(self, idx: int):
 
         # print('s', idx)
 
@@ -193,7 +193,7 @@ class VideoPlayerServer:
                 "Cannot use seek_time when frame times and fps are not specified."
             )
 
-        self.seek(idx)
+        self._seek(idx)
 
     def quit(self):
         self._running = False
@@ -234,10 +234,6 @@ class VideoPlayer:
         vp.start()
         # start main loop
         sys.exit(vp.app.exec())
-
-    def seek(self, idx: int):
-        """Display frame of the specified index."""
-        self._conn.send(("seek", idx))
 
     def seek_time(self, t: float):
         """Display frame that is closer to the specified time (seconds)."""
