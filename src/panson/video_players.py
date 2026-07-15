@@ -33,7 +33,7 @@ class VideoPlayerServer:
     def __init__(
         self,
         conn: mp.connection.Connection,
-        file_path: str,
+        file: str,
         fps=None,
     ):
         """
@@ -44,10 +44,10 @@ class VideoPlayerServer:
         # pipe end
         self._conn = conn
 
-        self._file_path = file_path
+        self._file = file
 
         # capture device
-        self._capture = cv2.VideoCapture(file_path)
+        self._capture = cv2.VideoCapture(file)
 
         self._fps = fps
 
@@ -83,7 +83,7 @@ class VideoPlayerServer:
 
         ret, frame = self._capture.read()
         if ret:
-            cv2.imshow('Frame', frame)
+            cv2.imshow(self._file, frame)
             cv2.waitKey(1)
 
     def quit(self):
@@ -96,7 +96,7 @@ class VideoPlayer:
 
     def __init__(
         self,
-        file_path: str,
+        file: str,
         fps=None,
     ):
         """
@@ -106,7 +106,7 @@ class VideoPlayer:
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn, file_path, fps),
+            args=(child_conn, file, fps),
         )
 
         # start server process
