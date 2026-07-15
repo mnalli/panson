@@ -34,7 +34,7 @@ class VideoPlayerServer:
         self,
         conn: mp.connection.Connection,
         file: str,
-        fps=None,
+        fps: float | None = None,
     ):
         """
         :param conn: pipe end used for communication
@@ -49,7 +49,8 @@ class VideoPlayerServer:
         # capture device
         self._capture = cv2.VideoCapture(file)
 
-        self._fps = fps
+        if fps is not None:
+            self._capture.set(cv2.CAP_PROP_FPS, fps)
 
         # threads
         self._receiver_thread = threading.Thread(target=self._receiver)
