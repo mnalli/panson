@@ -12,14 +12,12 @@ performed in other processes and commands are sent through pipes.
 The classes are meant to be used together with the data players.
 """
 
-import csv
 import multiprocessing as mp
 import threading
 import time
 import traceback
 
 import cv2
-import numpy as np
 
 __all__ = "VideoPlayer", "RTVideoPlayer"
 
@@ -36,17 +34,12 @@ class VideoPlayerServer:
         self,
         conn: mp.connection.Connection,
         file_path: str,
-        frame_times_path: str = None,
         fps=None,
     ):
         """
         :param conn: pipe end used for communication
         :param file_path: video file path
-        :param frame_times_path: optional file containing frame timestamps
-            if frame_times_path and fps are both None, the frame times file will
-            be considered at file_path + '.csv'
         :param fps: static fps value
-            considered if frame times is not available
         """
         # pipe end
         self._conn = conn
@@ -56,33 +49,7 @@ class VideoPlayerServer:
         # capture device
         self._capture = cv2.VideoCapture(file_path)
 
-        if frame_times_path is None:
-            print("No frame times specified")
-
-            if fps is None:
-                print("No FPS specified")
-                self._fps = None
-
-                frame_times_path = file_path + ".csv"
-                print(f"Loading default frame times from {frame_times_path}")
-
-                try:
-                    self._frame_times = np.loadtxt(frame_times_path, delimiter=",")
-                    print("Frame times loaded.")
-                except OSError:
-                    print("No default frame times found: seek_time will not work.")
-                    self._frame_times = None
-
-            else:
-                print(f"Using static fps {fps}")
-                self._fps = fps
-                self._frame_times = None
-        else:
-            print(f"Loading frame times from {frame_times_path}")
-            self._frame_times = np.loadtxt(frame_times_path)
-            if fps:
-                print(f"Ignoring specified fps {fps}")
-                self._fps = None
+        self._fps = fps
 
         # threads
         self._receiver_thread = threading.Thread(target=self._receiver)
@@ -130,21 +97,16 @@ class VideoPlayer:
     def __init__(
         self,
         file_path: str,
-        frame_times_path: str = None,
         fps=None,
     ):
         """
         :param file_path: video file
-        :param frame_times_path: optional file containing frame timestamps
-            if frame_times_path and fps are both None, the frame times file will
-            be considered at file_path + '.csv'
         :param fps: static fps value
-            considered if frame times is not available
         """
         self._conn, child_conn = mp.Pipe()
         p = mp.Process(
             target=self._server_main,
-            args=(child_conn, file_path, frame_times_path, fps),
+            args=(child_conn, file_path, fps),
         )
 
         # start server process
@@ -215,12 +177,8 @@ class RTVideoPlayerServer:
 
         # Recorder
         self._recording = False
-        # recorder's start time
-        self._t0 = None
         self._enumerate_records = enumerate_records
         self._run_counter = 0
-        self._frame_counter = None
-        self._frametimes = None
         self._fname = None
 
         self._fourcc = cv2.VideoWriter_fourcc(*"XVID")
@@ -278,11 +236,7 @@ class RTVideoPlayerServer:
             cv2.waitKey(33)
 
             if self._recording:
-                # log video frame
                 self._writer.write(frame)
-                # log timestamp
-                self._log_writer.writerow([self._frame_counter, t - self._t0])
-                self._frame_counter += 1
 
         if self._recording:
             self._stop_recording()
@@ -293,7 +247,7 @@ class RTVideoPlayerServer:
         # Closes all the frames
         cv2.destroyAllWindows()    # TODO: is it correct?
 
-    def _start_recording(self, t_start):
+    def _start_recording(self):
         if self._enumerate_records:
             self._fname = "%s-%03d.%s" % (
                 self._out_file_prefix,
@@ -308,20 +262,9 @@ class RTVideoPlayerServer:
             self._fname, self._fourcc, self._fps, (self._width, self._height)
         )
 
-        self._log_file = open(f"{self._fname}.csv", "w")
-        # TODO: add float format precision?
-        self._log_writer = csv.writer(self._log_file)
-        # write header
-        self._log_writer.writerow(["frame_number", "timestamp"])
-
-        self._frame_counter = 0
-        self._t0 = t_start
-
     def _stop_recording(self):
         self._writer.release()
         print("Release writer")
-
-        self._log_file.close()
 
     # COMMANDS
 
@@ -336,13 +279,9 @@ class RTVideoPlayerServer:
         """Enable or disable auto enumeration of files."""
         self._enumerate_records = val
 
-    def record(self, t_start):
-        """Start recorder
-
-        :param t_start: reference timestamp
-            used to synchronize logs and recordings
-        """
-        self._start_recording(t_start)
+    def record(self):
+        """Start recorder"""
+        self._start_recording()
         self._recording = True
 
     def stop(self):
@@ -401,13 +340,9 @@ class RTVideoPlayer:
         """Set file name for recordings."""
         self._conn.send(("filename", filename))
 
-    def record(self, t_start):
-        """Start recorder.
-
-        :param t_start: reference timestamp
-            used to synchronize logs and recordings
-        """
-        self._conn.send(("record", t_start))
+    def record(self):
+        """Start recorder."""
+        self._conn.send(("record",))
 
     def stop(self):
         self._conn.send(("stop",))
