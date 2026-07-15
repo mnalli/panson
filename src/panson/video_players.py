@@ -14,28 +14,17 @@ The classes are meant to be used together with the data players.
 
 import csv
 import multiprocessing as mp
-import sys
 import threading
 import time
 import traceback
 
 import cv2
 import numpy as np
-import pims
-import pyqtgraph as pg
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QObject, pyqtSignal
 
 __all__ = "VideoPlayer", "RTVideoPlayer"
 
 
-class Communicate(QObject):
-    updateImg = pyqtSignal(np.ndarray)
-
-
-# TODO: refactor video players inheriting from QMainWindow
 # TODO: refactor to have consistent communication between client and server classes
-# TODO: bring this component out of the framework in an independent project?
 
 
 class VideoPlayerServer:
@@ -63,8 +52,9 @@ class VideoPlayerServer:
         self._conn = conn
 
         self._file_path = file_path
-        # TODO: Video is the correct class to use?
-        self._video = pims.Video(file_path)
+
+        # capture device
+        self._capture = cv2.VideoCapture(file_path)
 
         if frame_times_path is None:
             print("No frame times specified")
@@ -97,49 +87,8 @@ class VideoPlayerServer:
         # threads
         self._receiver_thread = threading.Thread(target=self._receiver)
 
-        self.c = Communicate()
-        self.c.updateImg.connect(self._update_img)
-
         # playback running
         self._running = False
-
-        # GUI
-        self.app = QtWidgets.QApplication([])
-        self._win = QtWidgets.QMainWindow()
-        self._win.setWindowTitle(f"File: {file_path}")
-
-        # black image
-        self._img = pg.ImageItem()
-        self._img.setAutoDownsample(True)
-
-        self._img_gv = pg.GraphicsView()
-        self._view_box = pg.ViewBox()
-        self._view_box.setAspectLocked()
-        self._view_box.invertY(True)
-
-        self._img_gv.setCentralItem(self._view_box)
-
-        self._view_box.addItem(self._img)
-
-        self._win.setCentralWidget(self._img_gv)
-
-        # print(f"{self._width} x {self._height} @ {self._fps} fps")
-        # self._win.setGeometry(1000, 0, self._width, self._height)
-
-        # set first frame
-        self._curr_frame_idx = 0
-        self._img.setImage(self._video[self._curr_frame_idx].swapaxes(0, 1))
-
-        self._win.show()
-
-    def _update_img(self, img):
-        """Update displayed image.
-
-        The image must be updated only in the thread where is was originally
-        created. For this reason this method is only called when triggered by
-        an updateImg signal.
-        """
-        self._img.setImage(img)
 
     def start(self):
         """Start reception of commands."""
@@ -156,44 +105,19 @@ class VideoPlayerServer:
                 # capture and print all exception not to make the server crash
                 traceback.print_exc()
 
-        # end main loop
-        self.app.exit()
-
     # COMMANDS
 
-    def _seek(self, idx: int):
-
-        # print('s', idx)
-
-        if not (0 <= idx < len(self._video)):
-            raise ValueError(f"idx ({idx}) must be between 0 and {len(self._video)}")
-
-        if idx == self._curr_frame_idx:
-            return
-
-        frame = self._video[idx]
-        self.c.updateImg.emit(frame.swapaxes(0, 1))
-
-        self._curr_frame_idx = idx
-
     def seek_time(self, t: float):
-        if self._frame_times is not None:
-            max_time = self._frame_times[-1, 1]
-            if t > max_time:
-                raise ValueError(f"t == {t} is greater than maximum time {max_time}")
-            # find timestamp with binary search
-            idx = np.searchsorted(self._frame_times[:, 1], t)
-        elif self._fps is not None:
-            max_time = len(self._video) / self._fps
-            if t > max_time:
-                raise ValueError(f"t == {t} is greater than maximum time {max_time}")
-            idx = int(t * self._fps)
-        else:
-            raise ValueError(
-                "Cannot use seek_time when frame times and fps are not specified."
-            )
 
-        self._seek(idx)
+        # TODO: check bounds
+
+        # seek milliseconds
+        self._capture.set(cv2.CAP_PROP_POS_MSEC, t * 1000)
+
+        ret, frame = self._capture.read()
+        if ret:
+            cv2.imshow('Frame', frame)
+            cv2.waitKey(1)
 
     def quit(self):
         self._running = False
@@ -232,8 +156,6 @@ class VideoPlayer:
         vp = VideoPlayerServer(*args)
         # start threads
         vp.start()
-        # start main loop
-        sys.exit(vp.app.exec())
 
     def seek_time(self, t: float):
         """Display frame that is closer to the specified time (seconds)."""
