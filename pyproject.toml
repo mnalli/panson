@@ -23,7 +23,7 @@ license-files = ["LICENSE"]
 
 # TODO: use version ranges
 dependencies = [
-  "sc3nb==1.1.0",
+  "sc3nb~=1.1.0",
 
   "matplotlib==3.9.4",
 
