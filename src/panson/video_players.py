@@ -23,12 +23,10 @@ __all__ = "VideoPlayer", "RTVideoPlayer"
 
 
 # TODO: refactor to have consistent communication between client and server classes
-
+# TODO: implement playback logic in VideoPlayer?
 
 class VideoPlayerServer:
     """This class encapsulate the logic of the behaviour of the video player."""
-
-    # TODO: implement playback logic in VideoPlayer
 
     def __init__(
         self,
