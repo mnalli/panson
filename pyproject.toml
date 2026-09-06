@@ -12,10 +12,14 @@ description = "Interactive sonification framework"
 readme = "README.md"
 requires-python = ">=3.11"
 
-# TODO: find appropriate classifiers
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: OS Independent",
+  "Framework :: Jupyter",
 ]
 
 license = "MIT"
