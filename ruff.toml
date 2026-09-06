@@ -1,4 +1,4 @@
-target-version = "py310"
+target-version = "py311"
 
 # Set line length to 88 (Black standard)
 # line-length = 88
