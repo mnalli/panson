@@ -203,9 +203,7 @@ class GroupSonification:
     def __init__(self, sonifications):
         for son in sonifications:
             if not isinstance(son, Sonification):
-                raise TypeError(
-                    f"Class {type(son)} is not a subclass of Sonification."
-                )
+                raise TypeError(f"Class {type(son)} is not a subclass of Sonification.")
 
         s = reduce(
             (lambda s1, s2: s1 if s1 == s2 else None),

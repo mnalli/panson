@@ -173,9 +173,7 @@ class DataPlayer(_DataPlayerBase):
         self._ptr = 0
 
         if not isinstance(time_label, str):
-            raise TypeError(
-                f"time_key cannot be a {type(time_label)}: must be string."
-            )
+            raise TypeError(f"time_key cannot be a {type(time_label)}: must be string.")
 
         if fps is None:
             self._time_label = time_label

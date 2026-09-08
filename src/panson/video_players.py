@@ -24,6 +24,7 @@ __all__ = "RTVideoPlayer", "VideoPlayer"
 # TODO: refactor to have consistent communication between client and server classes
 # TODO: implement playback logic in VideoPlayer?
 
+
 class VideoPlayerServer:
     """This class encapsulate the logic of the behaviour of the video player."""
 
@@ -243,7 +244,7 @@ class RTVideoPlayerServer:
         self._capture.release()
 
         # Closes all the frames
-        cv2.destroyAllWindows()    # TODO: is it correct?
+        cv2.destroyAllWindows()  # TODO: is it correct?
 
     def _start_recording(self):
         if self._enumerate_records:
