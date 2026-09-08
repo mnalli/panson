@@ -35,7 +35,7 @@ class Stream:
         datagen=None,
         args=(),
         kwargs=None,
-        preprocessor: type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] | None = None,
     ):
         """
         :param name: unique name for the stream instance

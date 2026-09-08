@@ -13,15 +13,12 @@ plt.style.use("fivethirtyeight")
 # TODO: refactor using draw_artists?
 
 
-class FeatureDisplay:
+class FeatureDisplay:  # TODO
     """This class is used to display data values in a plot.
 
     It is meant to be used together with DataPlayer so that the data can be
     visually navigated while the sonification is played.
     """
-
-    # TODO
-    pass
 
 
 class RTFeatureDisplay:

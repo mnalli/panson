@@ -4,7 +4,9 @@ repos:
   hooks:
     - id: ruff-check
       args: [ --fix ]
+      files: ^src/    # ignore examples/ (for now)
     - id: ruff-format
+      files: ^src/
 - repo: https://github.com/astral-sh/uv-pre-commit
   rev: 0.11.17
   hooks:

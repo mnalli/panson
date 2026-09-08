@@ -14,16 +14,16 @@ The classes are meant to be used together with the data players.
 
 import multiprocessing as mp
 import threading
-import time
 import traceback
 
 import cv2
 
-__all__ = "VideoPlayer", "RTVideoPlayer"
+__all__ = "RTVideoPlayer", "VideoPlayer"
 
 
 # TODO: refactor to have consistent communication between client and server classes
 # TODO: implement playback logic in VideoPlayer?
+
 
 class VideoPlayerServer:
     """This class encapsulate the logic of the behaviour of the video player."""
@@ -142,9 +142,9 @@ class RTVideoPlayerServer:
         self,
         conn: mp.connection.Connection,
         device: int = 0,
-        width: int = None,
-        height: int = None,
-        fps: int = None,
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
         enumerate_records: bool = True,
     ):
         """
@@ -220,7 +220,7 @@ class RTVideoPlayerServer:
 
         while self._running:
             grabbed, frame = self._capture.read()
-            t = time.time()
+            # t = time.time()
 
             if not grabbed:
                 print("Can't receive frame (stream end?). Exiting ...")
@@ -230,7 +230,7 @@ class RTVideoPlayerServer:
             # display
             cv2.imshow(f"Camera: device {self._device_id}", frame)
 
-            # FIXME: how to establish a sensible value?
+            # TODO: how to establish a sensible value?
             # TODO: move after recording logic?
             cv2.waitKey(33)
 
@@ -244,7 +244,7 @@ class RTVideoPlayerServer:
         self._capture.release()
 
         # Closes all the frames
-        cv2.destroyAllWindows()    # TODO: is it correct?
+        cv2.destroyAllWindows()  # TODO: is it correct?
 
     def _start_recording(self):
         if self._enumerate_records:
@@ -300,9 +300,9 @@ class RTVideoPlayer:
     def __init__(
         self,
         device: int = 0,
-        width: int = None,
-        height: int = None,
-        fps: int = None,
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
         enumerate_records: bool = True,
     ):
         """

@@ -31,7 +31,7 @@ from .views import (
 _LOGGER = logging.getLogger(__name__)
 
 
-__all__ = "DataPlayer", "RTDataPlayer", "RTDataPlayerMT", "RTDataPlayerMP"
+__all__ = "DataPlayer", "RTDataPlayer", "RTDataPlayerMP", "RTDataPlayerMT"
 
 # TODO: widgets are not updated when the data player state is changed programmatically
 
@@ -127,7 +127,7 @@ class DataPlayer(_DataPlayerBase):
         return self._rate
 
     @rate.setter
-    def rate(self, rate: int | float):
+    def rate(self, rate: float):
         if rate == 0:
             raise ValueError("Cannot set rate to 0.")
 
@@ -142,7 +142,7 @@ class DataPlayer(_DataPlayerBase):
     def load(
         self,
         data: str | pd.DataFrame,
-        fps: int | float = None,
+        fps: float | None = None,
         time_label: str = "timestamp",
     ) -> "DataPlayer":
         """Load data into the data player.
@@ -161,7 +161,7 @@ class DataPlayer(_DataPlayerBase):
         elif isinstance(data, pd.DataFrame):
             self._df = data
         else:
-            raise ValueError(
+            raise TypeError(
                 f"Cannot load {data} of type {type(data)}."
                 f"Needing {pd.DataFrame} or a path to a csv file."
             )
@@ -173,9 +173,7 @@ class DataPlayer(_DataPlayerBase):
         self._ptr = 0
 
         if not isinstance(time_label, str):
-            raise ValueError(
-                f"time_key cannot be a {type(time_label)}: must be string."
-            )
+            raise TypeError(f"time_key cannot be a {type(time_label)}: must be string.")
 
         if fps is None:
             self._time_label = time_label
@@ -274,7 +272,7 @@ class DataPlayer(_DataPlayerBase):
         self._running = False
         self._worker.join()
 
-    def seek(self, target: int | float) -> None:
+    def seek(self, target: float) -> None:
         """Seek different data point.
 
         :param target: index of data or time
@@ -287,7 +285,7 @@ class DataPlayer(_DataPlayerBase):
         elif isinstance(target, float):
             self._seek_time(target)
         else:
-            raise ValueError(
+            raise TypeError(
                 "time must be an int (frame index) or float (seconds). "
                 f"Cannot be {type(target)}."
             )
@@ -647,7 +645,7 @@ class RTDataPlayerMT(_RTDataPlayerBase):
         fps=None,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
-        preprocessor: type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] | None = None,
     ):
         """
         :param streams: sequence of stream objects
@@ -888,7 +886,7 @@ class RTDataPlayerMP(_RTDataPlayerBase):
         fps=None,
         feature_display: RTFeatureDisplay = None,
         video_player: RTVideoPlayer = None,
-        preprocessor: type[Preprocessor] = None,
+        preprocessor: type[Preprocessor] | None = None,
     ):
         """
         :param streams: sequence of stream objects
