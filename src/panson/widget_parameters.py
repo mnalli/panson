@@ -5,19 +5,19 @@ import ipywidgets as widgets
 
 # TODO: WidgetParameter, SelectionParameter and BooleanParameter
 __all__ = (
-    "IntSliderParameter",
-    "FloatSliderParameter",
-    "FloatLogSliderParameter",
+    "CheckboxParameter",
+    "ComboboxParameter",
     "DbSliderParameter",
-    "MidiSliderParameter",
+    "DropdownParameter",
+    "FloatLogSliderParameter",
+    "FloatRangeSliderParameter",
+    "FloatSliderParameter",
     "FreqSliderParameter",
     "IntRangeSliderParameter",
-    "FloatRangeSliderParameter",
+    "IntSliderParameter",
+    "MidiSliderParameter",
     "SelectParameter",
-    "DropdownParameter",
-    "ComboboxParameter",
     "ToggleButtonParameter",
-    "CheckboxParameter",
 )
 
 
@@ -52,7 +52,6 @@ class WidgetParameter(ABC):
     @abstractmethod
     def _get_ipywidget(self, value):
         """Return ipywidget (without initial value assigned)."""
-        pass
 
 
 class IntSliderParameter(WidgetParameter):
@@ -255,7 +254,7 @@ class BooleanParameter(WidgetParameter, ABC):
 
     def __set__(self, instance, value):
         if not isinstance(value, bool):
-            raise ValueError(f"value ({value}) must be a boolean: got a {type(value)}.")
+            raise TypeError(f"value ({value}) must be a boolean: got a {type(value)}.")
         super().__set__(instance, value)
 
 

@@ -11,7 +11,7 @@ from pandas import Series
 from sc3nb.osc.osc_communication import Bundler
 from sc3nb.sc_objects.server import SCServer
 
-__all__ = "Parameter", "Sonification", "bundle", "GroupSonification"
+__all__ = "GroupSonification", "Parameter", "Sonification", "bundle"
 
 
 class Parameter:
@@ -53,7 +53,7 @@ class Sonification(ABC):
     parameters of the sonification.
     """
 
-    __slots__ = "_lock", "__s"
+    __slots__ = "__s", "_lock"
 
     @final
     def __init__(self, *args, s: SCServer = None, **kwargs):
@@ -84,7 +84,6 @@ class Sonification(ABC):
 
         This method is called only when the object is created.
         """
-        pass
 
     @abstractmethod
     def init_server(self) -> Bundler:
@@ -97,7 +96,6 @@ class Sonification(ABC):
 
         :return: Bundler containing the OSC messages
         """
-        pass
 
     @abstractmethod
     def start(self) -> Bundler:
@@ -111,7 +109,6 @@ class Sonification(ABC):
 
         :return: Bundler containing the OSC messages
         """
-        pass
 
     def stop(self) -> Bundler:
         """Return OSC messages to be sent at stop time.
@@ -148,7 +145,6 @@ class Sonification(ABC):
             Data row to be sonified.
         :return: Bundler containing the OSC messages
         """
-        pass
 
     def free(self) -> None:
         """Free server resources allocated in init_server().
@@ -164,7 +160,6 @@ class Sonification(ABC):
         to objects that are displayed in the notebook, making automatic release
         of resources at garbage collection time not reliable.
         """
-        pass
 
     def _ipython_display_(self):
         title = widgets.Label(value=self.__class__.__name__)
@@ -208,7 +203,7 @@ class GroupSonification:
     def __init__(self, sonifications):
         for son in sonifications:
             if not isinstance(son, Sonification):
-                raise ValueError(
+                raise TypeError(
                     f"Class {type(son)} is not a subclass of Sonification."
                 )
 
