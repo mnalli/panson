@@ -11,8 +11,12 @@ Add `panson` to the current environment (in editable mode).
 pip install -e .
 ```
 
-For developers, synchronize your environment with `uv.lock`:
+## For developers
 
 ```sh
+# synchronize your environment with uv.lock
 uv sync
+
+# install pre-commit hooks
+uv run pre-commit install
 ```
